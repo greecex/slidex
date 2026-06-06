@@ -6,6 +6,7 @@ defmodule Slidex.Accounts.User do
   @foreign_key_type :binary_id
   schema "users" do
     field :email, :string
+    field :username, :string
     field :password, :string, virtual: true, redact: true
     field :hashed_password, :string, redact: true
     field :confirmed_at, :utc_datetime_usec
@@ -53,6 +54,45 @@ defmodule Slidex.Accounts.User do
   defp validate_email_changed(changeset) do
     if get_field(changeset, :email) && get_change(changeset, :email) == nil do
       add_error(changeset, :email, "did not change")
+    else
+      changeset
+    end
+  end
+
+  # username handling
+
+  def username_changeset(user, attrs, opts \\ []) do
+    user
+    |> cast(attrs, [:username])
+    |> validate_username(opts)
+  end
+
+  defp validate_username(changeset, opts) do
+    changeset =
+      changeset
+      |> validate_required([:username])
+      |> validate_format(:username, ~r/^[a-zA-Z][a-zA-Z0-9_]*$/,
+        message: "must start with a letter and can only contain letters, numbers and underscores"
+      )
+      |> validate_length(:username,
+        min: 3,
+        max: 30,
+        message: "should be between 3 and 30 characters"
+      )
+
+    if Keyword.get(opts, :validate_unique, true) do
+      changeset
+      |> unsafe_validate_unique(:username, Slidex.Repo)
+      |> unique_constraint(:username)
+      |> validate_username_changed()
+    else
+      changeset
+    end
+  end
+
+  defp validate_username_changed(changeset) do
+    if get_field(changeset, :username) && get_change(changeset, :username) == nil do
+      add_error(changeset, :username, "did not change")
     else
       changeset
     end
