@@ -25,7 +25,7 @@ defmodule Slidex.Polling.Question do
     |> cast(attrs, permitted)
     |> validate_required(required)
     |> foreign_key_constraint(:poll_id)
-    |> validate_length(:question, max: 500)
+    |> validate_length(:body, max: 500)
     |> cast_assoc(:options)
   end
 end
