@@ -12,6 +12,6 @@ defmodule Slidex.Repo.Migrations.CreateQuestions do
     end
 
     create index(:questions, [:poll_id])
-    create index(:options, [:poll_id, :position])
+    create index(:questions, [:poll_id, :position])
   end
 end
