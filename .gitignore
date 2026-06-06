@@ -37,3 +37,5 @@ npm-debug.log
 
 .env.dev
 .env.prod
+
+erlang-shell-log*
