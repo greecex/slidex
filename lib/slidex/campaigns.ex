@@ -40,8 +40,21 @@ defmodule Slidex.Campaigns do
       [%Poll{}, ...]
 
   """
-  def list_polls(%Scope{} = scope) do
-    Repo.all_by(Poll, user_id: scope.user.id)
+  def list_polls(%Scope{} = scope, opts \\ []) do
+    preloads = Keyword.get(opts, :preloads, [])
+
+    query =
+      Poll
+      |> where([p], p.user_id == ^scope.user.id)
+      |> order_by([p], desc: p.inserted_at)
+
+    case Keyword.get(opts, :archived, false) do
+      true -> query
+      false -> query |> where([p], is_nil(p.archived_at))
+      :only -> query |> where([p], not is_nil(p.archived_at))
+    end
+    |> Repo.all()
+    |> Repo.preload(preloads)
   end
 
   @doc """
@@ -129,6 +142,74 @@ defmodule Slidex.Campaigns do
            Repo.delete(poll) do
       broadcast_poll(scope, {:deleted, poll})
       {:ok, poll}
+    end
+  end
+
+  def archive_poll(%Scope{} = scope, %Poll{} = poll) do
+    true = poll.user_id == scope.user.id
+
+    with %Poll{archived_at: nil} <- poll,
+         attrs = %{archived_at: DateTime.utc_now()},
+         {:ok, archived} <-
+           scope
+           |> change_poll(poll, attrs)
+           |> Repo.update() do
+      broadcast_poll(scope, {:archived, archived})
+      {:ok, archived}
+    else
+      %Poll{archived_at: %DateTime{}} -> {:ok, poll}
+      error -> error
+    end
+  end
+
+  def unarchive_poll(%Scope{} = scope, %Poll{} = poll) do
+    true = poll.user_id == scope.user.id
+
+    with %Poll{archived_at: %DateTime{}} <- poll,
+         attrs = %{archived_at: nil},
+         {:ok, unarchived} <-
+           scope
+           |> change_poll(poll, attrs)
+           |> Repo.update() do
+      broadcast_poll(scope, {:unarchived, unarchived})
+      {:ok, unarchived}
+    else
+      %Poll{archived_at: nil} -> {:ok, poll}
+      error -> error
+    end
+  end
+
+  def close_poll(%Scope{} = scope, %Poll{} = poll) do
+    true = poll.user_id == scope.user.id
+
+    with %Poll{closed_at: nil} <- poll,
+         attrs = %{closed_at: DateTime.utc_now()},
+         {:ok, closed} <-
+           scope
+           |> change_poll(poll, attrs)
+           |> Repo.update() do
+      broadcast_poll(scope, {:closed, closed})
+      {:ok, closed}
+    else
+      %Poll{closed_at: %DateTime{}} -> {:ok, poll}
+      error -> error
+    end
+  end
+
+  def reopen_poll(%Scope{} = scope, %Poll{} = poll) do
+    true = poll.user_id == scope.user.id
+
+    with %Poll{closed_at: %DateTime{}} <- poll,
+         attrs = %{closed_at: nil},
+         {:ok, reopened} <-
+           scope
+           |> change_poll(poll, attrs)
+           |> Repo.update() do
+      broadcast_poll(scope, {:reopened, reopened})
+      {:ok, reopened}
+    else
+      %Poll{closed_at: nil} -> {:ok, poll}
+      error -> error
     end
   end
 
