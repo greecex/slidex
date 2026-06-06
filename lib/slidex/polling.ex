@@ -36,6 +36,19 @@ defmodule Slidex.Polling do
     |> Repo.insert()
   end
 
+  def search_question_bodies(%Scope{} = scope, search_term, opts \\ []) do
+    limit = Keyword.get(opts, :limit, 10)
+
+    Question
+    |> join(:inner, [q], p in assoc(q, :poll))
+    |> where([q, p], p.user_id == ^scope.user.id)
+    |> where([q], ilike(q.body, ^"%#{search_term}%"))
+    |> order_by([q], desc: q.inserted_at)
+    |> limit(^limit)
+    |> select([q], %{id: q.id, body: q.body})
+    |> Repo.all()
+  end
+
   # TODO: Add check to prevent editing if the question already has responses
   def update_question(%Scope{} = scope, %Question{} = question, attrs) do
     question = Repo.preload(question, :poll)
