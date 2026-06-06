@@ -2,6 +2,7 @@ defmodule Slidex.Campaigns.Poll do
   use Ecto.Schema
   import Ecto.Changeset
   alias Slidex.Accounts.User
+  alias Slidex.Polling.Question
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -13,8 +14,8 @@ defmodule Slidex.Campaigns.Poll do
     field :closed_at, :utc_datetime_usec
     field :archived_at, :utc_datetime_usec
 
-    # field :user_id, :binary_id
     belongs_to :user, User
+    has_many :questions, Question, on_delete: :delete_all
 
     timestamps(type: :utc_datetime_usec)
   end

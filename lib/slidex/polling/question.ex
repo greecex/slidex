@@ -1,23 +1,30 @@
 defmodule Slidex.Polling.Question do
   use Ecto.Schema
   import Ecto.Changeset
+  alias Slidex.Campaigns.Poll
+  alias Slidex.Polling.Option
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
   schema "questions" do
-    field :position, :integer
+    field :position, :integer, default: 0
     field :body, :string
-    field :poll_id, :binary_id
-    field :user_id, :binary_id
+
+    belongs_to :poll, Poll
+    has_many :options, Option, on_delete: :delete_all
 
     timestamps(type: :utc_datetime_usec)
   end
 
   @doc false
-  def changeset(question, attrs, user_scope) do
+  def changeset(question, attrs) do
+    permitted = [:position, :body]
+    required = [:body]
+
     question
-    |> cast(attrs, [:position, :body])
-    |> validate_required([:position, :body])
-    |> put_change(:user_id, user_scope.user.id)
+    |> cast(attrs, permitted)
+    |> validate_required(required)
+    |> foreign_key_constraint(:poll_id)
+    |> cast_assoc(:options)
   end
 end
