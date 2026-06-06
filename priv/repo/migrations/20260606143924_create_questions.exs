@@ -6,7 +6,7 @@ defmodule Slidex.Repo.Migrations.CreateQuestions do
       add :id, :binary_id, primary_key: true
       add :position, :integer, default: 0
       add :body, :string, null: false
-      add :poll_id, references(:polls, on_delete: :nothing, type: :binary_id)
+      add :poll_id, references(:polls, on_delete: :delete_all, type: :binary_id), null: false
 
       timestamps(type: :utc_datetime_usec)
     end
