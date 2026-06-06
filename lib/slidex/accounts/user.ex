@@ -15,6 +15,19 @@ defmodule Slidex.Accounts.User do
     timestamps(type: :utc_datetime_usec)
   end
 
+  def registration_changeset(attrs, opts \\ []) do
+    permitted = [:email, :username, :password]
+    required = permitted -- [:password]
+
+    validate_unique? = Keyword.get(opts, :validate_unique, false)
+
+    %__MODULE__{}
+    |> cast(attrs, permitted)
+    |> validate_required(required)
+    |> validate_email(validate_unique: validate_unique?)
+    |> validate_username(validate_unique: validate_unique?)
+  end
+
   @doc """
   A user changeset for registering or changing the email.
 
@@ -26,7 +39,7 @@ defmodule Slidex.Accounts.User do
       uniqueness of the email, useful when displaying live validations.
       Defaults to `true`.
   """
-  def email_changeset(user, attrs, opts \\ []) do
+  def email_changeset(%__MODULE__{} = user, attrs, opts \\ []) do
     user
     |> cast(attrs, [:email])
     |> validate_email(opts)
@@ -51,17 +64,9 @@ defmodule Slidex.Accounts.User do
     end
   end
 
-  defp validate_email_changed(changeset) do
-    if get_field(changeset, :email) && get_change(changeset, :email) == nil do
-      add_error(changeset, :email, "did not change")
-    else
-      changeset
-    end
-  end
-
   # username handling
 
-  def username_changeset(user, attrs, opts \\ []) do
+  def username_changeset(%__MODULE__{} = user, attrs, opts \\ []) do
     user
     |> cast(attrs, [:username])
     |> validate_username(opts)
@@ -90,9 +95,17 @@ defmodule Slidex.Accounts.User do
     end
   end
 
-  defp validate_username_changed(changeset) do
-    if get_field(changeset, :username) && get_change(changeset, :username) == nil do
-      add_error(changeset, :username, "did not change")
+  # Validate if the username or the email has changed
+
+  defp validate_username_changed(changeset),
+    do: validate_field_changed(changeset, :username)
+
+  defp validate_email_changed(changeset),
+    do: validate_field_changed(changeset, :email)
+
+  defp validate_field_changed(changeset, field) when is_atom(field) do
+    if get_field(changeset, field) && get_change(changeset, field) == nil do
+      add_error(changeset, field, "did not change")
     else
       changeset
     end
@@ -113,7 +126,7 @@ defmodule Slidex.Accounts.User do
       validations on a LiveView form), this option can be set to `false`.
       Defaults to `true`.
   """
-  def password_changeset(user, attrs, opts \\ []) do
+  def password_changeset(%__MODULE__{} = user, attrs, opts \\ []) do
     user
     |> cast(attrs, [:password])
     |> validate_confirmation(:password, message: "does not match password")
@@ -160,7 +173,7 @@ defmodule Slidex.Accounts.User do
   If there is no user or the user doesn't have a password, we call
   `Argon2.no_user_verify/0` to avoid timing attacks.
   """
-  def valid_password?(%Slidex.Accounts.User{hashed_password: hashed_password}, password)
+  def valid_password?(%__MODULE__{hashed_password: hashed_password}, password)
       when is_binary(hashed_password) and byte_size(password) > 0 do
     Argon2.verify_pass(password, hashed_password)
   end
