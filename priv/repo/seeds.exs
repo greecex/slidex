@@ -10,11 +10,17 @@
 # We recommend using the bang functions (`insert!`, `update!`
 # and so on) as they will fail if something goes wrong.
 
+alias Slidex.Accounts
+
 # Create demo user
 
-%{
+attrs = %{
   email: "demo@example.com",
-  username: "demo",
-  confirmed_at: DateTime.utc_now()
+  username: "demo"
 }
-|> Slidex.Accounts.register_user()
+
+user =
+  with {:ok, u} <- Accounts.register_user(attrs),
+       {:ok, {confirmed_user, _}} <- Accounts.confirm_unconfirmed_user(u) do
+    confirmed_user
+  end
