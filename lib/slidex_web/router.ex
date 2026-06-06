@@ -58,6 +58,7 @@ defmodule SlidexWeb.Router do
       live "/polls", PollLive.Index, :index
       live "/polls/new", PollLive.Form, :new
       live "/polls/:id", PollLive.Show, :show
+      live "/polls/:id/questions", PollLive.Questions, :edit
       live "/polls/:id/edit", PollLive.Form, :edit
     end
 
