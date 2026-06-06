@@ -14,14 +14,38 @@ defmodule SlidexWeb.PollLive.Form do
       </.header>
 
       <.form for={@form} id="poll-form" phx-change="validate" phx-submit="save">
-        <.input field={@form[:title]} type="text" label="Title" />
-        <.input field={@form[:is_public]} type="checkbox" label="Is public" />
-        <.input field={@form[:access_code]} type="text" label="Access code" />
-        <.input field={@form[:expires_at]} type="datetime-local" label="Expires at" />
+        <div class="space-y-6">
+          <.input field={@form[:title]} type="text" label="Title" required />
 
-        <footer>
-          <.button phx-disable-with="Saving..." variant="primary">Save Poll</.button>
-          <.button navigate={return_path(@current_scope, @return_to, @poll)}>Cancel</.button>
+          <div
+            class="tooltip"
+            data-tip="Public polls are accessible to guest users who haven't logged on to Slidex"
+          >
+            <.input field={@form[:is_public]} type="checkbox" label="Public poll" />
+          </div>
+
+          <div>
+            <p class="text-neutral text-xs border border-dashed border-base-300 bg-base-200 rounded p-3">
+              You can generate an access code that will be required for participating in the voting process, regardless of whether the poll is public or not.
+            </p>
+            <.input field={@form[:access_code]} type="text" label="Access code" />
+          </div>
+
+          <div>
+            <p class="text-neutral text-xs border border-dashed border-base-300 bg-base-200 rounded p-3">
+              If you set an expiration date and time, participation in the voting process will be blocked after that moment in time.
+            </p>
+            <.input field={@form[:expires_at]} type="datetime-local" label="Expires at" />
+          </div>
+        </div>
+
+        <footer class="mt-12 flex flex-row justify-between items-center">
+          <.button navigate={return_path(@current_scope, @return_to, @poll)}>
+            <.icon name="hero-arrow-left" class="size-5" /> Cancel
+          </.button>
+          <.button phx-disable-with="Saving..." variant="primary">
+            <.icon name="hero-check-circle" class="size-5" /> Save
+          </.button>
         </footer>
       </.form>
     </Layouts.app>
