@@ -11,6 +11,12 @@ defmodule SlidexWeb.PollLive.Form do
       <.header>
         {@page_title}
         <:subtitle>Use this form to manage poll records in your database.</:subtitle>
+        <:actions>
+          <.button :if={@live_action == :edit} navigate={~p"/polls/#{@poll}/questions"}>
+            <.icon name="hero-question-mark-circle" />
+            <span class="hidden md:block">Edit Questions</span>
+          </.button>
+        </:actions>
       </.header>
 
       <.form for={@form} id="poll-form" phx-change="validate" phx-submit="save">
@@ -114,9 +120,7 @@ defmodule SlidexWeb.PollLive.Form do
         {:noreply,
          socket
          |> put_flash(:info, "Poll created successfully")
-         |> push_navigate(
-           to: return_path(socket.assigns.current_scope, socket.assigns.return_to, poll)
-         )}
+         |> push_navigate(to: return_path(socket.assigns.current_scope, "questions", poll))}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, form: to_form(changeset))}
@@ -125,4 +129,5 @@ defmodule SlidexWeb.PollLive.Form do
 
   defp return_path(_scope, "index", _poll), do: ~p"/polls"
   defp return_path(_scope, "show", poll), do: ~p"/polls/#{poll}"
+  defp return_path(_scope, "questions", poll), do: ~p"/polls/#{poll}/questions"
 end
