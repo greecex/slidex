@@ -48,7 +48,7 @@ defmodule SlidexWeb.Layouts do
       <div class="flex-none">
         <ul class="flex flex-column px-1 space-x-4 items-center">
           <li
-            class=""
+            class="tooltip tooltip-bottom hidden md:block"
             data-tip="Building the Elixir community in Greece, one line of code at a time."
           >
             <a href="https://greecex.org/" class="btn btn-primary">
@@ -56,7 +56,7 @@ defmodule SlidexWeb.Layouts do
             </a>
           </li>
           <li
-            class="tooltip"
+            class="tooltip tooltip-bottom hidden md:block"
             data-tip="Source code"
           >
             <a href="https://github.com/greecex/slidex" class="btn btn-secondary">
