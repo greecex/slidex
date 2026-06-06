@@ -41,7 +41,7 @@ defmodule SlidexWeb.PollLive.Show do
     {:ok,
      socket
      |> assign(:page_title, "Show Poll")
-     |> assign(:poll, Campaigns.get_poll!(socket.assigns.current_scope, id))}
+     |> assign(:poll, Campaigns.get_poll!(socket.assigns.current_scope, id, [:questions]))}
   end
 
   @impl true
