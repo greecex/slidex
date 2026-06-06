@@ -1,6 +1,7 @@
 defmodule Slidex.Campaigns.Poll do
   use Ecto.Schema
   import Ecto.Changeset
+  alias Slidex.Accounts.User
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -9,18 +10,25 @@ defmodule Slidex.Campaigns.Poll do
     field :is_public, :boolean, default: false
     field :access_code, :string
     field :expires_at, :utc_datetime
-    field :closed_at, :utc_datetime
+    field :closed_at, :utc_datetime_usec
     field :archived_at, :utc_datetime_usec
-    field :user_id, :binary_id
+
+    # field :user_id, :binary_id
+    belongs_to :user, User
 
     timestamps(type: :utc_datetime_usec)
   end
 
   @doc false
   def changeset(poll, attrs, user_scope) do
+    permitted = __MODULE__.__schema__(:fields) -- [:user_id, :inserted_at, :updated_at]
+
+    required = [:title]
+
     poll
-    |> cast(attrs, [:title, :is_public, :access_code, :expires_at, :closed_at, :archived_at])
-    |> validate_required([:title, :is_public, :access_code, :expires_at, :closed_at, :archived_at])
+    |> cast(attrs, permitted)
+    |> validate_required(required)
+    |> validate_length(:title, max: 200)
     |> put_change(:user_id, user_scope.user.id)
   end
 end
