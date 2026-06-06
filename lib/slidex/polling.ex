@@ -43,9 +43,11 @@ defmodule Slidex.Polling do
     |> join(:inner, [q], p in assoc(q, :poll))
     |> where([q, p], p.user_id == ^scope.user.id)
     |> where([q], ilike(q.body, ^"%#{search_term}%"))
-    |> order_by([q], desc: q.inserted_at)
+    |> order_by([q], asc: q.body)
     |> limit(^limit)
-    |> select([q], %{id: q.id, body: q.body})
+    # |> select([q], %{id: q.id, body: q.body})
+    |> distinct([q], q.body)
+    |> select([q], q.body)
     |> Repo.all()
   end
 
