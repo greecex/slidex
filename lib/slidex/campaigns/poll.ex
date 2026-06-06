@@ -7,6 +7,7 @@ defmodule Slidex.Campaigns.Poll do
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
   schema "polls" do
+    field :slug, :string
     field :title, :string
     field :is_public, :boolean, default: false
     field :access_code, :string
@@ -30,6 +31,11 @@ defmodule Slidex.Campaigns.Poll do
     |> cast(attrs, permitted)
     |> validate_required(required)
     |> validate_length(:title, max: 50)
+    |> put_slug()
     |> put_change(:user_id, user_scope.user.id)
+  end
+
+  def put_slug(%Ecto.Changeset{} = changeset) do
+    put_change(changeset, :slug, Ecto.ULID.generate())
   end
 end
