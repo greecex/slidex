@@ -54,6 +54,11 @@ defmodule SlidexWeb.Router do
       on_mount: [{SlidexWeb.UserAuth, :require_authenticated}] do
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
+
+      live "/polls", PollLive.Index, :index
+      live "/polls/new", PollLive.Form, :new
+      live "/polls/:id", PollLive.Show, :show
+      live "/polls/:id/edit", PollLive.Form, :edit
     end
 
     post "/users/update-password", UserSessionController, :update_password
