@@ -9,7 +9,14 @@ defmodule Slidex.CampaignsTest do
     import Slidex.AccountsFixtures, only: [user_scope_fixture: 0]
     import Slidex.CampaignsFixtures
 
-    @invalid_attrs %{title: nil, is_public: nil, access_code: nil, expires_at: nil, closed_at: nil, archived_at: nil}
+    @invalid_attrs %{
+      title: nil,
+      is_public: nil,
+      access_code: nil,
+      expires_at: nil,
+      closed_at: nil,
+      archived_at: nil
+    }
 
     test "list_polls/1 returns all scoped polls" do
       scope = user_scope_fixture()
@@ -29,7 +36,15 @@ defmodule Slidex.CampaignsTest do
     end
 
     test "create_poll/2 with valid data creates a poll" do
-      valid_attrs = %{title: "some title", is_public: true, access_code: "some access_code", expires_at: ~U[2026-06-05 14:14:00Z], closed_at: ~U[2026-06-05 14:14:00Z], archived_at: ~U[2026-06-05 14:14:00.000000Z]}
+      valid_attrs = %{
+        title: "some title",
+        is_public: true,
+        access_code: "some access_code",
+        expires_at: ~U[2026-06-05 14:14:00Z],
+        closed_at: ~U[2026-06-05 14:14:00Z],
+        archived_at: ~U[2026-06-05 14:14:00.000000Z]
+      }
+
       scope = user_scope_fixture()
 
       assert {:ok, %Poll{} = poll} = Campaigns.create_poll(scope, valid_attrs)
@@ -50,7 +65,15 @@ defmodule Slidex.CampaignsTest do
     test "update_poll/3 with valid data updates the poll" do
       scope = user_scope_fixture()
       poll = poll_fixture(scope)
-      update_attrs = %{title: "some updated title", is_public: false, access_code: "some updated access_code", expires_at: ~U[2026-06-06 14:14:00Z], closed_at: ~U[2026-06-06 14:14:00Z], archived_at: ~U[2026-06-06 14:14:00.000000Z]}
+
+      update_attrs = %{
+        title: "some updated title",
+        is_public: false,
+        access_code: "some updated access_code",
+        expires_at: ~U[2026-06-06 14:14:00Z],
+        closed_at: ~U[2026-06-06 14:14:00Z],
+        archived_at: ~U[2026-06-06 14:14:00.000000Z]
+      }
 
       assert {:ok, %Poll{} = poll} = Campaigns.update_poll(scope, poll, update_attrs)
       assert poll.title == "some updated title"
