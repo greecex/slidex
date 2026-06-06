@@ -2,7 +2,6 @@ import Config
 
 # Configure your database
 config :slidex, Slidex.Repo,
-  socket_options: [:inet6],
   stacktrace: true,
   show_sensitive_data_on_connection_error: true
 
@@ -15,7 +14,7 @@ config :slidex, Slidex.Repo,
 config :slidex, SlidexWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-  http: [ip: {127, 0, 0, 1}, port: String.to_integer(System.get_env("PORT") || "4000")],
+  http: [ip: {127, 0, 0, 1}, port: String.to_integer(System.get_env("PORT") || "5716")],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
