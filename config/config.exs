@@ -9,7 +9,10 @@ import Config
 
 config :slidex,
   ecto_repos: [Slidex.Repo],
-  generators: [timestamp_type: :utc_datetime]
+  generators: [
+    timestamp_type: :utc_datetime_usec,
+    binary_id: true
+  ]
 
 # Configures the endpoint
 config :slidex, SlidexWeb.Endpoint,
