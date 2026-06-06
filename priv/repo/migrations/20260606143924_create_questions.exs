@@ -4,7 +4,7 @@ defmodule Slidex.Repo.Migrations.CreateQuestions do
   def change do
     create table(:questions, primary_key: false) do
       add :id, :binary_id, primary_key: true
-      add :position, :integer, default: 0
+      add :position, :integer, default: 0, null: false
       add :body, :string, null: false
       add :poll_id, references(:polls, on_delete: :delete_all, type: :binary_id), null: false
 
@@ -12,5 +12,6 @@ defmodule Slidex.Repo.Migrations.CreateQuestions do
     end
 
     create index(:questions, [:poll_id])
+    create index(:options, [:poll_id, :position])
   end
 end
