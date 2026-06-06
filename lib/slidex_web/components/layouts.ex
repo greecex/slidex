@@ -38,25 +38,33 @@ defmodule SlidexWeb.Layouts do
     <header class="navbar px-4 sm:px-6 lg:px-8">
       <div class="flex-1">
         <a href="/" class="flex-1 flex w-fit items-center gap-2">
-          <img src={~p"/images/logo.svg"} width="36" />
-          <span class="text-sm font-semibold">v{Application.spec(:phoenix, :vsn)}</span>
+          <SlidexWeb.Icons.logo />
+          <span class="text-md font-bold text-primary">{Slidex.application_name()}</span>
+          <span class="badge badge-sm badge-soft badge-secondary font-semibold">
+            v{Slidex.application_version()}
+          </span>
         </a>
       </div>
       <div class="flex-none">
         <ul class="flex flex-column px-1 space-x-4 items-center">
-          <li>
-            <a href="https://phoenixframework.org/" class="btn btn-ghost">Website</a>
+          <li
+            class=""
+            data-tip="Building the Elixir community in Greece, one line of code at a time."
+          >
+            <a href="https://greecex.org/" class="btn btn-primary">
+              <SlidexWeb.Icons.logo_alt width={10} /> Greece |> Elixir
+            </a>
           </li>
-          <li>
-            <a href="https://github.com/phoenixframework/phoenix" class="btn btn-ghost">GitHub</a>
+          <li
+            class="tooltip"
+            data-tip="Source code"
+          >
+            <a href="https://github.com/greecex/slidex" class="btn btn-secondary">
+              <SlidexWeb.Icons.github />GitHub
+            </a>
           </li>
           <li>
             <.theme_toggle />
-          </li>
-          <li>
-            <a href="https://hexdocs.pm/phoenix/overview.html" class="btn btn-primary">
-              Get Started <span aria-hidden="true">&rarr;</span>
-            </a>
           </li>
         </ul>
       </div>
