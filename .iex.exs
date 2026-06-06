@@ -2,7 +2,10 @@ require Logger
 
 alias Slidex.Repo
 alias Slidex.Accounts
-alias Slidex.Accounts.User
+alias Slidex.Accounts.{Scope, User}
+alias Slidex.Campaigns
+alias Slidex.Campaigns.Poll
+alias Slidex.Polling
 alias Slidex.Polling.{Question, Option}
 
 username = "demo"
