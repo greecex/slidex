@@ -20,6 +20,16 @@ if System.get_env("PHX_SERVER") do
   config :slidex, SlidexWeb.Endpoint, server: true
 end
 
+config :slidex, Slidex.Repo,
+  username: System.fetch_env!("DB_USER"),
+  password: System.fetch_env!("DB_PASS"),
+  hostname: System.fetch_env!("DB_HOST"),
+  port: String.to_integer(System.fetch_env!("DB_PORT")),
+  database: System.fetch_env!("DB_NAME"),
+  pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
+  ssl: false,
+  log: false
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||
