@@ -8,71 +8,215 @@ defmodule SlidexWeb.PollLive.Components.QuestionLiveComponent do
     {:ok,
      socket
      |> assign(:results, [])
-     |> assign(:show_results, false)}
+     |> assign(:show_results, false)
+     |> assign(:editing, false)
+     |> assign(:body, "")}
+  end
+
+  @impl true
+  def update(assigns, socket) do
+    is_temporary = Map.has_key?(assigns.question, :temp_id)
+    # Ensure the body reflects the latest data passed from the parent
+    body = assigns.question.body || ""
+    editing = is_temporary or body == ""
+
+    {:ok,
+     socket
+     |> assign(assigns)
+     |> assign(:is_temporary, is_temporary)
+     |> assign(:editing, editing)
+     |> assign(:body, body)}
   end
 
   @impl true
   def render(assigns) do
     ~H"""
-    <div>
-      <.input
-        id={"question-body-#{@id}"}
-        name="question[body]"
-        value={@question.body}
-        label="Question body"
-        phx-change="search"
-        phx-target={@myself}
-        phx-debounce="300"
-        autocomplete="off"
-      />
-
-      <%= if @show_results and length(@results) > 0 do %>
-        <div class="absolute z-50 mt-1 w-full border border-base-300 bg-base-100 rounded-xl shadow-sm max-h-60 overflow-auto divide-y divide-base-200 text-sm">
-          <%= for item <- @results do %>
-            <div
-              class="px-3 py-2 hover:bg-base-200 cursor-pointer"
-              phx-click="select"
-              phx-value-body={item.body}
-              phx-target={@myself}
-            >
-              <span class="truncate">{item.body}</span>
-            </div>
-          <% end %>
+    <div class="card bg-base-200 px-3 py-3">
+      <%= if !@editing do %>
+        <div class="w-full flex flex-row justify-between items-center">
+          <.button
+            type="button"
+            phx-click="delete"
+            class="btn btn-soft btn-sm btn-error"
+            phx-target={@myself}
+          >
+            <.icon name="hero-trash" /> Delete
+          </.button>
+          <.button
+            type="button"
+            phx-click="edit"
+            phx-target={@myself}
+            class="btn btn-primary btn-sm"
+          >
+            <.icon name="hero-pencil-square" /> Edit
+          </.button>
         </div>
+
+        <div class="divider divider-y my-1 divider-base-200" />
+
+        <div class="card rounded-sm w-full bg-base-100 font-semibold px-3 py-2 leading-tight">
+          {@body}
+        </div>
+      <% end %>
+
+      <%= if @editing do %>
+        <.form
+          for={to_form(%{"body" => @body})}
+          id={"form-#{@id}"}
+          phx-change="search"
+          phx-target={@myself}
+        >
+          <div class="w-full flex flex-row justify-between items-center">
+            <.button
+              type="button"
+              phx-click={if String.trim(@body) == "", do: "delete", else: "cancel_edit"}
+              phx-target={@myself}
+              class="btn btn-soft btn-sm"
+            >
+              <.icon name="hero-x-mark" /> Cancel
+            </.button>
+            <.button
+              type="button"
+              phx-click="save"
+              phx-target={@myself}
+              disabled={String.trim(@body || "") == ""}
+              class="btn btn-primary btn-sm"
+            >
+              <.icon name="hero-check" /> {if @is_temporary, do: "Save", else: "Update"}
+            </.button>
+          </div>
+
+          <div class="divider divider-y my-1 divider-base-200" />
+
+          <div class="space-y-2">
+            <.input
+              type="textarea"
+              name="body"
+              value={@body}
+              phx-debounce="150"
+              autocomplete="off"
+              placeholder="Type your question..."
+            />
+
+            <%= if @show_results and length(@results) > 0 do %>
+              <div class="border border-base-300 bg-base-100 rounded mt-0 max-h-48 overflow-y-auto text-sm divide-y divide-base-200">
+                <%= for item <- @results do %>
+                  <div
+                    class="px-3 py-2 bg-base-100 hover:bg-base-200 cursor-pointer hover:text-primary"
+                    phx-click="select"
+                    phx-value-body={item}
+                    phx-target={@myself}
+                  >
+                    {item}
+                  </div>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+        </.form>
       <% end %>
     </div>
     """
   end
 
   @impl true
-  def handle_event("search", %{"value" => value}, socket) do
-    search_term = String.trim(value || "")
+  def handle_event("search", %{"body" => value}, socket) do
+    search_term = String.trim(value)
 
     results =
       if String.length(search_term) > 2 do
-        Polling.search_question_bodies(
-          socket.assigns.current_scope,
-          search_term,
-          limit: 8
-        )
+        Polling.search_question_bodies(socket.assigns.current_scope, search_term, limit: 8)
       else
         []
       end
 
     {:noreply,
      socket
+     |> assign(:body, search_term)
      |> assign(:results, results)
      |> assign(:show_results, length(results) > 0)}
   end
 
   @impl true
   def handle_event("select", %{"body" => body}, socket) do
-    # Send the selected body to the parent LiveView
     send(self(), {:select_question_body, socket.assigns.id, body})
 
     {:noreply,
      socket
+     |> assign(:body, body)
      |> assign(:results, [])
      |> assign(:show_results, false)}
+  end
+
+  @impl true
+  def handle_event("save", _params, socket) do
+    body = String.trim(socket.assigns.body || "")
+
+    cond do
+      body == "" ->
+        {:noreply, put_flash(socket, :error, "Question body cannot be empty")}
+
+      socket.assigns.is_temporary ->
+        case Polling.create_question(socket.assigns.current_scope, socket.assigns.poll, %{
+               body: body
+             }) do
+          {:ok, saved_question} ->
+            temp_id = Map.get(socket.assigns.question, :temp_id)
+            send(self(), {:question_created, saved_question, temp_id})
+
+            {:noreply,
+             socket
+             |> assign(:editing, false)
+             |> assign(:results, [])
+             |> assign(:show_results, false)}
+
+          {:error, _changeset} ->
+            {:noreply, put_flash(socket, :error, "Could not save question")}
+        end
+
+      true ->
+        case Polling.update_question(socket.assigns.current_scope, socket.assigns.question, %{
+               body: body
+             }) do
+          {:ok, updated_question} ->
+            send(self(), {:question_updated, updated_question})
+
+            {:noreply,
+             socket
+             |> assign(:editing, false)
+             |> assign(:results, [])
+             |> assign(:show_results, false)}
+
+          {:error, _changeset} ->
+            {:noreply, put_flash(socket, :error, "Could not update question")}
+        end
+    end
+  end
+
+  @impl true
+  def handle_event("edit", _params, socket) do
+    {:noreply, assign(socket, :editing, true)}
+  end
+
+  @impl true
+  def handle_event("cancel_edit", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:editing, false)
+     |> assign(:body, socket.assigns.question.body || "")
+     |> assign(:results, [])
+     |> assign(:show_results, false)}
+  end
+
+  @impl true
+  def handle_event("delete", _params, socket) do
+    if socket.assigns.is_temporary do
+      send(self(), {:question_deleted, socket.assigns.question.temp_id})
+    else
+      Polling.delete_question(socket.assigns.current_scope, socket.assigns.question)
+      send(self(), {:question_deleted, socket.assigns.question.id})
+    end
+
+    {:noreply, socket}
   end
 end
