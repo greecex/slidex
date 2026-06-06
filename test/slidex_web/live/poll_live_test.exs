@@ -4,9 +4,30 @@ defmodule SlidexWeb.PollLiveTest do
   import Phoenix.LiveViewTest
   import Slidex.CampaignsFixtures
 
-  @create_attrs %{title: "some title", is_public: true, access_code: "some access_code", expires_at: "2026-06-05T14:14:00Z", closed_at: "2026-06-05T14:14:00Z", archived_at: "2026-06-05T14:14:00.000000Z"}
-  @update_attrs %{title: "some updated title", is_public: false, access_code: "some updated access_code", expires_at: "2026-06-06T14:14:00Z", closed_at: "2026-06-06T14:14:00Z", archived_at: "2026-06-06T14:14:00.000000Z"}
-  @invalid_attrs %{title: nil, is_public: false, access_code: nil, expires_at: nil, closed_at: nil, archived_at: nil}
+  @create_attrs %{
+    title: "some title",
+    is_public: true,
+    access_code: "some access_code",
+    expires_at: "2026-06-05T14:14:00Z",
+    closed_at: "2026-06-05T14:14:00Z",
+    archived_at: "2026-06-05T14:14:00.000000Z"
+  }
+  @update_attrs %{
+    title: "some updated title",
+    is_public: false,
+    access_code: "some updated access_code",
+    expires_at: "2026-06-06T14:14:00Z",
+    closed_at: "2026-06-06T14:14:00Z",
+    archived_at: "2026-06-06T14:14:00.000000Z"
+  }
+  @invalid_attrs %{
+    title: nil,
+    is_public: false,
+    access_code: nil,
+    expires_at: nil,
+    closed_at: nil,
+    archived_at: nil
+  }
 
   setup :register_and_log_in_user
 
