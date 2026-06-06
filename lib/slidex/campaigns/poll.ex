@@ -29,7 +29,7 @@ defmodule Slidex.Campaigns.Poll do
     poll
     |> cast(attrs, permitted)
     |> validate_required(required)
-    |> validate_length(:title, max: 200)
+    |> validate_length(:title, max: 50)
     |> put_change(:user_id, user_scope.user.id)
   end
 end
