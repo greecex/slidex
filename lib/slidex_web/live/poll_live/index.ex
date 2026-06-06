@@ -21,12 +21,42 @@ defmodule SlidexWeb.PollLive.Index do
         rows={@streams.polls}
         row_click={fn {_id, poll} -> JS.navigate(~p"/polls/#{poll}") end}
       >
+        <:col :let={{_id, poll}} label="">
+          <div
+            :if={poll.closed_at}
+            class="tooltip tooltip-sm"
+            data-tip={"Closed at #{poll.closed_at}"}
+          >
+            <.icon name="hero-stop-circle" class="size-5" />
+          </div>
+
+          <div :if={!poll.closed_at} class="tooltip tooltip-sm" data-tip="Still open for voting">
+            <.icon name="hero-play-circle" class="size-5" />
+          </div>
+        </:col>
+
+        <:col :let={{_id, poll}} label="">
+          <%= if poll.is_public do %>
+            <div class="tooltip" data-tip="Public">
+              <.icon name="hero-eye" class="size-5" />
+            </div>
+          <% end %>
+        </:col>
+
+        <:col :let={{_id, poll}} label="">
+          <div
+            :if={!is_nil(poll.access_code)}
+            class="tooltip tooltip-sm"
+            data-tip="Requires access code for participation"
+          >
+            <.icon name="hero-lock-closed" class="size-5" />
+          </div>
+        </:col>
+
         <:col :let={{_id, poll}} label="Title">{poll.title}</:col>
-        <:col :let={{_id, poll}} label="Is public">{poll.is_public}</:col>
-        <:col :let={{_id, poll}} label="Access code">{poll.access_code}</:col>
-        <:col :let={{_id, poll}} label="Expires at">{poll.expires_at}</:col>
-        <:col :let={{_id, poll}} label="Closed at">{poll.closed_at}</:col>
-        <:col :let={{_id, poll}} label="Archived at">{poll.archived_at}</:col>
+
+        <:col :let={{_id, poll}} label="Expires at">{poll.expires_at || "-"}</:col>
+
         <:action :let={{_id, poll}}>
           <div class="sr-only">
             <.link navigate={~p"/polls/#{poll}"}>Show</.link>
