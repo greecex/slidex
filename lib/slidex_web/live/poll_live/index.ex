@@ -2,6 +2,7 @@ defmodule SlidexWeb.PollLive.Index do
   use SlidexWeb, :live_view
 
   alias Slidex.Campaigns
+  alias SlidexWeb.Components.Timers
 
   @impl true
   def render(assigns) do
@@ -55,21 +56,54 @@ defmodule SlidexWeb.PollLive.Index do
 
         <:col :let={{_id, poll}} label="Title">{poll.title}</:col>
 
-        <:col :let={{_id, poll}} label="Expires at">{poll.expires_at || "-"}</:col>
+        <:col :let={{_id, poll}} label="Expires at">
+          <%= if poll.expires_at do %>
+            <Timers.expires_at datetime={poll.expires_at} />
+          <% else %>
+            -
+          <% end %>
+        </:col>
 
-        <:action :let={{_id, poll}}>
+        <:action :let={{id, poll}}>
           <div class="sr-only">
             <.link navigate={~p"/polls/#{poll}"}>Show</.link>
           </div>
-          <.link navigate={~p"/polls/#{poll}/edit"}>Edit</.link>
-        </:action>
-        <:action :let={{id, poll}}>
-          <.link
-            phx-click={JS.push("delete", value: %{id: poll.id}) |> hide("##{id}")}
-            data-confirm="Are you sure?"
-          >
-            Delete
-          </.link>
+          <div class="dropdown dropdown-bottom dropdown-end">
+            <div tabindex="0" role="button" class="btn btn-ghost">
+              <.icon name="hero-ellipsis-vertical" class="size-6" />
+            </div>
+            <ul
+              tabindex="-1"
+              class="dropdown-content menu bg-base-100 rounded-box z-1 w-42 p-2 shadow-sm gap-y-1"
+            >
+              <li>
+                <.button
+                  navigate={~p"/polls/#{poll}/edit"}
+                  class="btn btn-primary btn-soft justify-start"
+                >
+                  <.icon name="hero-pencil-square" /> <span class="hidden md:block">Edit</span>
+                </.button>
+              </li>
+              <li>
+                <.button
+                  navigate={~p"/polls/#{poll}/questions"}
+                  class="btn btn-neutral btn-soft justify-start"
+                >
+                  <.icon name="hero-question-mark-circle" />
+                  <span class="hidden md:block">Questions</span>
+                </.button>
+              </li>
+              <li>
+                <.button
+                  phx-click={JS.push("delete", value: %{id: poll.id}) |> hide("##{id}")}
+                  data-confirm="Are you sure?"
+                  class="btn btn-soft btn-error justify-start"
+                >
+                  <.icon name="hero-trash" /> <span class="hidden md:block">Delete</span>
+                </.button>
+              </li>
+            </ul>
+          </div>
         </:action>
       </.table>
     </Layouts.app>
