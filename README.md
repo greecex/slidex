@@ -2,17 +2,22 @@
 
 To start your Phoenix server:
 
-* Run `mix setup` to install and setup dependencies
-* Start Phoenix endpoint with `mix phx.server` or inside IEx with `iex -S mix phx.server`
+- Run `mix setup` to install and setup dependencies
+- Start Phoenix endpoint with `mix phx.server` or inside IEx with `iex -S mix phx.server`
 
-Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
+## Environment files
 
-Ready to run in production? Please [check our deployment guides](https://hexdocs.pm/phoenix/deployment.html).
+- **Development:** `.env.dev` (see example `.env.dev.example`)
+- **Production:** `.env.prod` (see example `.env.prod.example`)
 
-## Learn more
+## Development
 
-* Official website: https://www.phoenixframework.org/
-* Guides: https://hexdocs.pm/phoenix/overview.html
-* Docs: https://hexdocs.pm/phoenix
-* Forum: https://elixirforum.com/c/phoenix-forum
-* Source: https://github.com/phoenixframework/phoenix
+```
+$ source .env.dev && mix ecto.setup && iex -S mix phx.server
+```
+
+Now you can visit [`localhost:5716`](http://localhost:5716) from your browser.
+
+# Production
+
+`TODO`
