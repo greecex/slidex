@@ -18,8 +18,7 @@ defmodule SlidexWeb.PollLive.Form do
         <.input field={@form[:is_public]} type="checkbox" label="Is public" />
         <.input field={@form[:access_code]} type="text" label="Access code" />
         <.input field={@form[:expires_at]} type="datetime-local" label="Expires at" />
-        <.input field={@form[:closed_at]} type="datetime-local" label="Closed at" />
-        <.input field={@form[:archived_at]} type="text" label="Archived at" />
+
         <footer>
           <.button phx-disable-with="Saving..." variant="primary">Save Poll</.button>
           <.button navigate={return_path(@current_scope, @return_to, @poll)}>Cancel</.button>
@@ -60,7 +59,9 @@ defmodule SlidexWeb.PollLive.Form do
 
   @impl true
   def handle_event("validate", %{"poll" => poll_params}, socket) do
-    changeset = Campaigns.change_poll(socket.assigns.current_scope, socket.assigns.poll, poll_params)
+    changeset =
+      Campaigns.change_poll(socket.assigns.current_scope, socket.assigns.poll, poll_params)
+
     {:noreply, assign(socket, form: to_form(changeset, action: :validate))}
   end
 
