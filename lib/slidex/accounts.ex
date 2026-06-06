@@ -26,6 +26,28 @@ defmodule Slidex.Accounts do
     Repo.get_by(User, email: email)
   end
 
+  def get_user_by_username(username) when is_binary(username) do
+    Repo.get_by(User, username: username)
+  end
+
+  def get_user_by_email_or_username(identifier) when is_binary(identifier) do
+    identifier
+    |> query_user_by_email_or_username()
+    |> Repo.one()
+  end
+
+  def get_user_by_email_or_username!(identifier) when is_binary(identifier) do
+    identifier
+    |> query_user_by_email_or_username()
+    |> Repo.one!()
+  end
+
+  def query_user_by_email_or_username(identifier) when is_binary(identifier) do
+    User
+    |> where([u], email: ^identifier)
+    |> or_where([u], username: ^identifier)
+  end
+
   @doc """
   Gets a user by email and password.
 
@@ -75,8 +97,8 @@ defmodule Slidex.Accounts do
 
   """
   def register_user(attrs) do
-    %User{}
-    |> User.email_changeset(attrs)
+    attrs
+    |> User.registration_changeset()
     |> Repo.insert()
   end
 
