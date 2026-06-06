@@ -58,8 +58,10 @@ defmodule Slidex.Campaigns do
       ** (Ecto.NoResultsError)
 
   """
-  def get_poll!(%Scope{} = scope, id) do
-    Repo.get_by!(Poll, id: id, user_id: scope.user.id)
+  def get_poll!(%Scope{} = scope, id, preloads \\ []) do
+    Poll
+    |> Repo.get_by!(id: id, user_id: scope.user.id)
+    |> Repo.preload(preloads)
   end
 
   @doc """
