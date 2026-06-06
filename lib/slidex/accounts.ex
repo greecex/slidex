@@ -255,9 +255,7 @@ defmodule Slidex.Accounts do
         """
 
       {%User{confirmed_at: nil} = user, _token} ->
-        user
-        |> User.confirm_changeset()
-        |> update_user_and_delete_all_tokens()
+        confirm_unconfirmed_user(user)
 
       {user, token} ->
         Repo.delete!(token)
@@ -266,6 +264,12 @@ defmodule Slidex.Accounts do
       nil ->
         {:error, :not_found}
     end
+  end
+
+  def confirm_unconfirmed_user(%User{confirmed_at: nil} = user) do
+    user
+    |> User.confirm_changeset()
+    |> update_user_and_delete_all_tokens()
   end
 
   @doc ~S"""
