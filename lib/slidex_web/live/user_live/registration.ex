@@ -28,6 +28,7 @@ defmodule SlidexWeb.UserLive.Registration do
             type="email"
             label="Email"
             autocomplete="username"
+            placeholder="username@example.com"
             spellcheck="false"
             required
             phx-mounted={JS.focus()}
