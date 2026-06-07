@@ -17,7 +17,6 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
   @impl true
   def update(assigns, socket) do
     is_temporary = Map.has_key?(assigns.question, :temp_id)
-    # Ensure the body reflects the latest data passed from the parent
     body = assigns.question.body || ""
     editing = is_temporary or body == ""
 
@@ -57,6 +56,38 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
 
         <div class="card rounded-sm w-full bg-base-100 font-semibold px-3 py-2 leading-tight">
           {@body}
+        </div>
+
+        <div class="mt-3">
+          <div class="text-xs text-neutral mb-1">Options</div>
+
+          <%= if @options != [] do %>
+            <div class="space-y-1">
+              <%= for option <- @options do %>
+                <.live_component
+                  module={OptionLive}
+                  id={"option-#{option_id(option)}"}
+                  option={option}
+                  current_scope={@current_scope}
+                  question={@question}
+                />
+              <% end %>
+            </div>
+          <% else %>
+            <div class="card w-full bg-base-100 shadow border border-dashed border-base-300">
+              <div class="card-body items-center py-4">
+                <.icon name="hero-face-frown" class="size-8 text-neutral" />
+                <div class="text-sm">No options yet</div>
+                <.button
+                  phx-click="add_option"
+                  phx-target={@myself}
+                  class="btn btn-primary btn-sm mt-2"
+                >
+                  <.icon name="hero-plus" /> Add Option
+                </.button>
+              </div>
+            </div>
+          <% end %>
         </div>
       <% end %>
 
@@ -164,12 +195,7 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
           {:ok, saved_question} ->
             temp_id = Map.get(socket.assigns.question, :temp_id)
             send(self(), {:question_created, saved_question, temp_id})
-
-            {:noreply,
-             socket
-             |> assign(:editing, false)
-             |> assign(:results, [])
-             |> assign(:show_results, false)}
+            {:noreply, clear_search(socket)}
 
           {:error, _changeset} ->
             {:noreply, put_flash(socket, :error, "Could not save question")}
@@ -181,12 +207,7 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
              }) do
           {:ok, updated_question} ->
             send(self(), {:question_updated, updated_question})
-
-            {:noreply,
-             socket
-             |> assign(:editing, false)
-             |> assign(:results, [])
-             |> assign(:show_results, false)}
+            {:noreply, clear_search(socket)}
 
           {:error, _changeset} ->
             {:noreply, put_flash(socket, :error, "Could not update question")}
@@ -219,5 +240,54 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
     end
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("add_option", _params, socket) do
+    new_option = %{
+      temp_id: "temp_opt_#{System.unique_integer([:positive])}",
+      body: "",
+      is_correct: false,
+      question_id: socket.assigns.question.id || socket.assigns.question[:temp_id]
+    }
+
+    options = socket.assigns.options ++ [new_option]
+    {:noreply, assign(socket, :options, options)}
+  end
+
+  # Messages from OptionLive
+
+  def handle_info({:option_created, new_option}, socket) do
+    options = socket.assigns.options ++ [new_option]
+    {:noreply, assign(socket, :options, options)}
+  end
+
+  def handle_info({:option_updated, updated_option}, socket) do
+    options =
+      Enum.map(socket.assigns.options, fn opt ->
+        if Map.get(opt, :id) == updated_option.id, do: updated_option, else: opt
+      end)
+
+    {:noreply, assign(socket, :options, options)}
+  end
+
+  def handle_info({:option_deleted, option_id}, socket) do
+    options =
+      Enum.reject(socket.assigns.options, fn opt ->
+        Map.get(opt, :id) == option_id or Map.get(opt, :temp_id) == option_id
+      end)
+
+    {:noreply, assign(socket, :options, options)}
+  end
+
+  defp option_id(%{id: id}) when not is_nil(id), do: id
+  defp option_id(%{temp_id: temp_id}), do: temp_id
+  defp option_id(_), do: Ecto.UUID.generate()
+
+  defp clear_search(socket) do
+    socket
+    |> assign(:editing, false)
+    |> assign(:results, [])
+    |> assign(:show_results, false)
   end
 end
