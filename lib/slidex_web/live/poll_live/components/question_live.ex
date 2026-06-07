@@ -1,7 +1,8 @@
-defmodule SlidexWeb.PollLive.Components.QuestionLiveComponent do
+defmodule SlidexWeb.PollLive.Components.QuestionLive do
   use SlidexWeb, :live_component
 
   alias Slidex.Polling
+  alias SlidexWeb.PollLive.Components.OptionLive
 
   @impl true
   def mount(socket) do
