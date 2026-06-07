@@ -30,18 +30,49 @@ defmodule SlidexWeb.PollLive.Form do
             <.input field={@form[:is_public]} type="checkbox" label="Public poll" />
           </div>
 
-          <div>
-            <p class="text-neutral text-xs border border-dashed border-base-300 bg-base-200 rounded p-3">
-              You can generate an access code that will be required for participating in the voting process, regardless of whether the poll is public or not.
-            </p>
-            <.input field={@form[:access_code]} type="text" label="Access code" />
-          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <h3 class="font-semibold mb-2">
+                Access code <span class="font-light text-info text-xs">(optional)</span>
+              </h3>
+              <p class="text-neutral text-xs border border-dashed border-base-300 bg-base-200 rounded p-3">
+                You can generate an access code that will be required for participating in the voting process, regardless of whether the poll is public or not.
+              </p>
+              <.button
+                :if={!@form[:access_code].value}
+                type="button"
+                phx-click="generate_code"
+                class="btn btn-block btn-soft btn-primary mt-1"
+              >
+                <.icon name="hero-lock-closed" /> Generate code
+              </.button>
 
-          <div>
-            <p class="text-neutral text-xs border border-dashed border-base-300 bg-base-200 rounded p-3">
-              If you set an expiration date and time, participation in the voting process will be blocked after that moment in time.
-            </p>
-            <.input field={@form[:expires_at]} type="datetime-local" label="Expires at" />
+              <div
+                :if={@form[:access_code].value}
+                class="w-full flex flex-row gap-x-1 items-center mt-1"
+              >
+                <div class="font-semibold text-center flex-1 border border-base-200 rounded py-1 px-2">
+                  {@form[:access_code].value}
+                </div>
+                <.button
+                  type="button"
+                  phx-click="clear_code"
+                  class="btn btn-soft btn-error"
+                >
+                  <.icon name="hero-lock-open" /> Remove code
+                </.button>
+              </div>
+            </div>
+
+            <div>
+              <h3 class="font-semibold mb-2">
+                Expiration <span class="font-light text-info text-xs">(optional)</span>
+              </h3>
+              <p class="text-neutral text-xs border border-dashed border-base-300 bg-base-200 rounded p-3">
+                If you set an expiration date and time, participation in the voting process will be blocked after that moment in time.
+              </p>
+              <.input field={@form[:expires_at]} type="datetime-local" />
+            </div>
           </div>
         </div>
 
@@ -97,6 +128,28 @@ defmodule SlidexWeb.PollLive.Form do
 
   def handle_event("save", %{"poll" => poll_params}, socket) do
     save_poll(socket, socket.assigns.live_action, poll_params)
+  end
+
+  def handle_event("generate_code", _params, socket) do
+    changeset =
+      Campaigns.change_poll(
+        socket.assigns.current_scope,
+        socket.assigns.poll,
+        %{access_code: Slidex.Campaigns.AccessCode.generate()}
+      )
+
+    {:noreply, assign(socket, form: to_form(changeset, action: :validate))}
+  end
+
+  def handle_event("clear_code", _params, socket) do
+    changeset =
+      Campaigns.change_poll(
+        socket.assigns.current_scope,
+        socket.assigns.poll,
+        %{access_code: nil}
+      )
+
+    {:noreply, assign(socket, form: to_form(changeset, action: :validate))}
   end
 
   defp save_poll(socket, :edit, poll_params) do
