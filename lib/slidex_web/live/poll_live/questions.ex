@@ -4,7 +4,7 @@ defmodule SlidexWeb.PollLive.Questions do
   alias Slidex.Campaigns
 
   alias Slidex.Repo
-  alias SlidexWeb.PollLive.Components.QuestionLiveComponent
+  alias SlidexWeb.PollLive.Components.QuestionLive
 
   @impl true
   def mount(%{"id" => poll_id}, _session, socket) do
@@ -52,7 +52,7 @@ defmodule SlidexWeb.PollLive.Questions do
         <div :if={@questions != []} class="flex flex-col gap-y-2">
           <%= for question <- @questions do %>
             <.live_component
-              module={QuestionLiveComponent}
+              module={QuestionLive}
               id={"question-#{question_id(question)}"}
               question={question}
               current_scope={@current_scope}
