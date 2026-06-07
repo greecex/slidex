@@ -20,18 +20,22 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
     body = assigns.question.body || ""
     editing = is_temporary or body == ""
 
+    options = Map.get(assigns.question, :options) || []
+
     {:ok,
      socket
      |> assign(assigns)
      |> assign(:is_temporary, is_temporary)
      |> assign(:editing, editing)
-     |> assign(:body, body)}
+     |> assign(:body, body)
+     |> assign(:options, Map.get(assigns.question, :options, []))
+     |> assign(:options, options)}
   end
 
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="card bg-base-200 px-3 py-3">
+    <div class="card bg-base border border-base-200 p-3 shadow">
       <%= if !@editing do %>
         <div class="w-full flex flex-row justify-between items-center">
           <.button
@@ -46,7 +50,7 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
             type="button"
             phx-click="edit"
             phx-target={@myself}
-            class="btn btn-primary btn-sm"
+            class="btn btn-primary btn-soft btn-sm"
           >
             <.icon name="hero-pencil-square" /> Edit
           </.button>
@@ -54,15 +58,13 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
 
         <div class="divider divider-y my-1 divider-base-200" />
 
-        <div class="card rounded-sm w-full bg-base-100 font-semibold px-3 py-2 leading-tight">
+        <div class="card rounded-sm w-full font-semibold px-1 py-2 leading-tight">
           {@body}
         </div>
 
         <div class="mt-3">
-          <div class="text-xs text-neutral mb-1">Options</div>
-
           <%= if @options != [] do %>
-            <div class="space-y-1">
+            <div class="space-y-2">
               <%= for option <- @options do %>
                 <.live_component
                   module={OptionLive}
@@ -72,19 +74,16 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
                   question={@question}
                 />
               <% end %>
+              <div class="mt-3">
+                <.add_option_button phx_target={@myself} wide />
+              </div>
             </div>
           <% else %>
             <div class="card w-full bg-base-100 shadow border border-dashed border-base-300">
               <div class="card-body items-center py-4">
                 <.icon name="hero-face-frown" class="size-8 text-neutral" />
                 <div class="text-sm">No options yet</div>
-                <.button
-                  phx-click="add_option"
-                  phx-target={@myself}
-                  class="btn btn-primary btn-sm mt-2"
-                >
-                  <.icon name="hero-plus" /> Add Option
-                </.button>
+                <.add_option_button phx_target={@myself} />
               </div>
             </div>
           <% end %>
@@ -105,16 +104,17 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
               phx-target={@myself}
               class="btn btn-soft btn-sm"
             >
-              <.icon name="hero-x-mark" /> Cancel
+              <.icon name="hero-x-mark" /> <span class="hidden md:block">Cancel</span>
             </.button>
             <.button
               type="button"
               phx-click="save"
               phx-target={@myself}
               disabled={String.trim(@body || "") == ""}
-              class="btn btn-primary btn-sm"
+              class="btn btn-success btn-sm"
             >
-              <.icon name="hero-check" /> {if @is_temporary, do: "Save", else: "Update"}
+              <.icon name="hero-check" />
+              <span class="hidden md:block">{if @is_temporary, do: "Save", else: "Update"}</span>
             </.button>
           </div>
 
@@ -157,7 +157,12 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
 
     results =
       if String.length(search_term) > 2 do
-        Polling.search_question_bodies(socket.assigns.current_scope, search_term, limit: 8)
+        Polling.search_question_bodies(
+          socket.assigns.current_scope,
+          search_term,
+          limit: 8,
+          excluded: [socket.assigns.poll, socket.assigns.question] |> IO.inspect()
+        )
       else
         []
       end
@@ -248,36 +253,13 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
       temp_id: "temp_opt_#{System.unique_integer([:positive])}",
       body: "",
       is_correct: false,
-      question_id: socket.assigns.question.id || socket.assigns.question[:temp_id]
+      question_id: socket.assigns.question.id || socket.assigns.question[:temp_id],
+      editing: true
     }
 
-    options = socket.assigns.options ++ [new_option]
-    {:noreply, assign(socket, :options, options)}
-  end
+    send(self(), {:add_temporary_option, socket.assigns.question, new_option})
 
-  # Messages from OptionLive
-
-  def handle_info({:option_created, new_option}, socket) do
-    options = socket.assigns.options ++ [new_option]
-    {:noreply, assign(socket, :options, options)}
-  end
-
-  def handle_info({:option_updated, updated_option}, socket) do
-    options =
-      Enum.map(socket.assigns.options, fn opt ->
-        if Map.get(opt, :id) == updated_option.id, do: updated_option, else: opt
-      end)
-
-    {:noreply, assign(socket, :options, options)}
-  end
-
-  def handle_info({:option_deleted, option_id}, socket) do
-    options =
-      Enum.reject(socket.assigns.options, fn opt ->
-        Map.get(opt, :id) == option_id or Map.get(opt, :temp_id) == option_id
-      end)
-
-    {:noreply, assign(socket, :options, options)}
+    {:noreply, socket}
   end
 
   defp option_id(%{id: id}) when not is_nil(id), do: id
@@ -289,5 +271,20 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
     |> assign(:editing, false)
     |> assign(:results, [])
     |> assign(:show_results, false)
+  end
+
+  attr :phx_target, :any, required: true
+  attr :wide, :boolean, default: false
+
+  def add_option_button(assigns) do
+    ~H"""
+    <.button
+      phx-click="add_option"
+      phx-target={@phx_target}
+      class={["btn btn-primary btn-soft btn-sm", if(@wide, do: "btn-block btn-soft")]}
+    >
+      <.icon name="hero-plus" /> Add Option
+    </.button>
+    """
   end
 end
