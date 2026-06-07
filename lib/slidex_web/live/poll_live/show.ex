@@ -8,7 +8,7 @@ defmodule SlidexWeb.PollLive.Show do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <.header>
-        Poll {@poll.id}
+        {@poll.title}
         <:subtitle>This is a poll record from your database.</:subtitle>
         <:actions>
           <.button navigate={~p"/polls"}>
@@ -21,7 +21,6 @@ defmodule SlidexWeb.PollLive.Show do
       </.header>
 
       <.list>
-        <:item title="Title">{@poll.title}</:item>
         <:item title="Is public">{@poll.is_public}</:item>
         <:item title="Access code">{@poll.access_code}</:item>
         <:item title="Expires at">{@poll.expires_at}</:item>
