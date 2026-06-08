@@ -3,7 +3,6 @@ defmodule SlidexWeb.PollLive.Index do
 
   alias Slidex.Campaigns
   alias Slidex.Campaigns.Poll
-  alias SlidexWeb.Components.Timers
 
   @impl true
   def render(assigns) do
@@ -57,168 +56,112 @@ defmodule SlidexWeb.PollLive.Index do
         </ul>
       </div>
 
-      <.table
-        id="polls"
-        rows={@streams.polls}
-        row_click={fn {_id, poll} -> JS.navigate(~p"/polls/#{poll}") end}
-      >
-        <:col :let={{_id, poll}} label="">
-          <div
-            :if={poll.closed_at}
-            class="tooltip tooltip-sm"
-            data-tip={"Closed at #{poll.closed_at}"}
-          >
-            <.icon name="hero-stop-circle" class="size-5" />
-          </div>
+      <div class="space-y-2">
+        <%= for {id, poll} <- @streams.polls do %>
+          <div class={[
+            "flex justify-between gap-x-4 rounded-lg border border-base-300 bg-base-100 p-3 ps-4 group  transition-all",
+            if(poll.description, do: "items-start", else: "items-center`")
+          ]}>
+            <div class="min-w-0 flex-1">
+              <div class="font-medium truncate">
+                <.link navigate={~p"/polls/#{poll}"} class="group-hover:text-primary">
+                  {poll.title}
+                </.link>
+              </div>
 
-          <div
-            :if={!poll.closed_at and poll.questions != []}
-            class="tooltip tooltip-sm"
-            data-tip="Open for voting"
-          >
-            <.icon name="hero-play-circle" class="size-5 text-success" />
-          </div>
+              <div :if={poll.description} class="text-xs text-base-content/60">
+                {poll.description}
+              </div>
 
-          <div
-            :if={!poll.closed_at and poll.questions == []}
-            class="tooltip tooltip-sm"
-            data-tip="No questions defined"
-          >
-            <.icon name="hero-exclamation-triangle" class="size-5 text-warning" />
-          </div>
-        </:col>
-
-        <:col :let={{_id, poll}} label="">
-          <%= if poll.is_public do %>
-            <div class="tooltip" data-tip="Public">
-              <.icon name="hero-eye" class="size-5 text-info" />
+              <div class="flex flex-row items-center justify-start gap-x-2">
+                <div :if={poll.archived_at} class="badge badge-warning badge-soft badge-sm">
+                  <.icon name="hero-archive-box" /> <span class="hidden md:block">Archived</span>
+                </div>
+                <div
+                  :if={poll.questions == []}
+                  class="tooltip tooltip-sm tooltip-right"
+                  data-tip="No questions defined"
+                >
+                  <.icon name="hero-exclamation-triangle" class="size-5 text-warning" />
+                </div>
+              </div>
             </div>
-          <% end %>
-        </:col>
 
-        <:col :let={{_id, poll}} label="">
-          <div
-            :if={!is_nil(poll.access_code)}
-            class="tooltip tooltip-sm"
-            data-tip="Requires access code for participation"
-          >
-            <.icon name="hero-lock-closed" class="size-5" />
-          </div>
-        </:col>
+            <div class="flex items-center gap-x-2">
+              <div class="dropdown dropdown-bottom dropdown-end">
+                <div tabindex="0" role="button" class="btn btn-ghost p-1">
+                  <.icon name="hero-ellipsis-vertical" class="size-6" />
+                </div>
+                <ul
+                  tabindex="-1"
+                  class="dropdown-content menu bg-base-100 rounded-box z-1 w-42 p-2 shadow-sm gap-y-2"
+                >
+                  <%= if !poll.archived_at do %>
+                    <li>
+                      <.button
+                        navigate={~p"/polls/#{poll}/edit"}
+                        class="btn btn-primary btn-soft justify-start"
+                      >
+                        <.icon name="hero-pencil-square" /> Edit
+                      </.button>
+                    </li>
 
-        <:col :let={{_id, poll}} label="Title">
-          <div class="flex flex-row items-center justify-start gap-x-2">
-            <div :if={poll.archived_at} class="badge badge-warning badge-soft badge-sm">
-              <.icon name="hero-archive-box" /> Archived
+                    <li>
+                      <.button
+                        navigate={~p"/polls/#{poll}/questions"}
+                        class="btn btn-neutral btn-soft justify-start"
+                      >
+                        <.icon name="hero-question-mark-circle" /> Questions
+                      </.button>
+                    </li>
+
+                    <div class="divider divider-y my-0" />
+                  <% end %>
+
+                  <li>
+                    <.button
+                      phx-click={JS.push("duplicate", value: %{id: poll.id})}
+                      data-confirm="Are you sure?"
+                      class="btn btn-soft btn-neutral justify-start"
+                    >
+                      <.icon name="hero-document-duplicate" /> Duplicate
+                    </.button>
+                  </li>
+
+                  <li :if={!poll.archived_at}>
+                    <.button
+                      phx-click={JS.push("archive", value: %{id: poll.id}) |> hide("##{id}")}
+                      data-confirm="Are you sure?"
+                      class="btn btn-soft btn-warning justify-start"
+                    >
+                      <.icon name="hero-archive-box-arrow-down" /> Archive
+                    </.button>
+                  </li>
+
+                  <li :if={poll.archived_at}>
+                    <.button
+                      phx-click={JS.push("unarchive", value: %{id: poll.id}) |> hide("##{id}")}
+                      class="btn btn-soft btn-success justify-start"
+                    >
+                      <.icon name="hero-archive-box-x-mark" /> Unarchive
+                    </.button>
+                  </li>
+
+                  <li>
+                    <.button
+                      phx-click={JS.push("delete", value: %{id: poll.id}) |> hide("##{id}")}
+                      data-confirm="Are you sure?"
+                      class="btn btn-soft btn-error justify-start"
+                    >
+                      <.icon name="hero-trash" /> Delete
+                    </.button>
+                  </li>
+                </ul>
+              </div>
             </div>
-            <span class="font-bold">{poll.title}</span>
           </div>
-        </:col>
-
-        <:col :let={{_id, poll}} label="Expires at">
-          <%= if poll.expires_at do %>
-            <Timers.expires_at datetime={poll.expires_at} />
-          <% else %>
-            -
-          <% end %>
-        </:col>
-
-        <:action :let={{id, poll}}>
-          <div class="sr-only">
-            <.link navigate={~p"/polls/#{poll}"}>Show</.link>
-          </div>
-          <div class="dropdown dropdown-bottom dropdown-end">
-            <div tabindex="0" role="button" class="btn btn-ghost">
-              <.icon name="hero-ellipsis-vertical" class="size-6" />
-            </div>
-            <ul
-              tabindex="-1"
-              class="dropdown-content menu bg-base-100 rounded-box z-1 w-42 p-2 shadow-sm gap-y-2"
-            >
-              <%= if !poll.archived_at do %>
-                <li>
-                  <.button
-                    navigate={~p"/polls/#{poll}/edit"}
-                    class="btn btn-primary btn-soft justify-start"
-                  >
-                    <.icon name="hero-pencil-square" /> Edit
-                  </.button>
-                </li>
-
-                <li>
-                  <.button
-                    navigate={~p"/polls/#{poll}/questions"}
-                    class="btn btn-neutral btn-soft justify-start"
-                  >
-                    <.icon name="hero-question-mark-circle" /> Questions
-                  </.button>
-                </li>
-
-                <div class="divider divider-y my-0" />
-
-                <li :if={!poll.closed_at}>
-                  <.button
-                    phx-click={JS.push("close", value: %{id: poll.id})}
-                    data-confirm="Are you sure?"
-                    class="btn btn-soft btn-neutral justify-start"
-                  >
-                    <.icon name="hero-stop" /> Close
-                  </.button>
-                </li>
-
-                <li :if={poll.closed_at}>
-                  <.button
-                    phx-click={JS.push("reopen", value: %{id: poll.id})}
-                    data-confirm="Are you sure?"
-                    class="btn btn-soft btn-success justify-start"
-                  >
-                    <.icon name="hero-play" /> Reopen
-                  </.button>
-                </li>
-              <% end %>
-
-              <li>
-                <.button
-                  phx-click={JS.push("duplicate", value: %{id: poll.id})}
-                  data-confirm="Are you sure?"
-                  class="btn btn-soft btn-neutral justify-start"
-                >
-                  <.icon name="hero-document-duplicate" /> Duplicate
-                </.button>
-              </li>
-
-              <li :if={!poll.archived_at}>
-                <.button
-                  phx-click={JS.push("archive", value: %{id: poll.id}) |> hide("##{id}")}
-                  data-confirm="Are you sure?"
-                  class="btn btn-soft btn-warning justify-start"
-                >
-                  <.icon name="hero-archive-box-arrow-down" /> Archive
-                </.button>
-              </li>
-
-              <li :if={poll.archived_at}>
-                <.button
-                  phx-click={JS.push("unarchive", value: %{id: poll.id}) |> hide("##{id}")}
-                  class="btn btn-soft btn-success justify-start"
-                >
-                  <.icon name="hero-archive-box-x-mark" /> Unarchive
-                </.button>
-              </li>
-
-              <li>
-                <.button
-                  phx-click={JS.push("delete", value: %{id: poll.id}) |> hide("##{id}")}
-                  data-confirm="Are you sure?"
-                  class="btn btn-soft btn-error justify-start"
-                >
-                  <.icon name="hero-trash" /> Delete
-                </.button>
-              </li>
-            </ul>
-          </div>
-        </:action>
-      </.table>
+        <% end %>
+      </div>
     </Layouts.app>
     """
   end
@@ -267,24 +210,6 @@ defmodule SlidexWeb.PollLive.Index do
     {:ok, _} = Campaigns.unarchive_poll(scope, poll)
 
     {:noreply, stream_delete(socket, :polls, poll)}
-  end
-
-  @impl true
-  def handle_event("close", %{"id" => id}, socket) do
-    scope = socket.assigns.current_scope
-    poll = Campaigns.get_poll!(scope, id)
-    {:ok, _} = Campaigns.close_poll(scope, poll)
-
-    {:noreply, stream_delete(socket, :polls, poll)}
-  end
-
-  @impl true
-  def handle_event("reopen", %{"id" => id}, socket) do
-    scope = socket.assigns.current_scope
-    poll = Campaigns.get_poll!(scope, id)
-    {:ok, _} = Campaigns.reopen_poll(scope, poll)
-
-    {:noreply, socket}
   end
 
   @impl true

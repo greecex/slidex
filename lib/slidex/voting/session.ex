@@ -7,9 +7,16 @@ defmodule Slidex.Voting.Session do
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
   schema "sessions" do
+    field :slug, :string
     field :title, :string
-    field :state, Ecto.Enum, values: [:pending, :active, :ended]
-    field :is_survey, :boolean, default: false
+    field :description, :string
+    # whether to show the :description value on the landing page of the %Session{}
+    field :show_description, :boolean, default: false
+    field :show_poll_description, :boolean, default: false
+    # :survey means it's a survey, so the state never switches to the other three values
+    # the other three values are the states of a voting sdession
+    field :state, Ecto.Enum, values: [:survey, :pending, :active, :ended], default: :pending
+    field :is_public, :boolean, default: false
     field :access_code, :string
     field :expires_at, :utc_datetime
     field :closed_at, :utc_datetime_usec
@@ -22,14 +29,18 @@ defmodule Slidex.Voting.Session do
 
   @doc false
   def changeset(session, attrs) do
-    permitted = [:title, :state, :is_survey]
-    required = []
+    permitted = __MODULE__.__schema__(:fields) -- [:inserted_at, :updated_at]
+    required = [:title]
+
+    IO.inspect(attrs)
 
     session
     |> cast(attrs, permitted)
     |> validate_required(required)
     |> maybe_set_title()
     |> validate_length(:title, max: 50)
+    |> validate_length(:description, max: 1000)
+    |> put_slug()
   end
 
   defp maybe_set_title(%Ecto.Changeset{} = changeset) do
@@ -38,5 +49,9 @@ defmodule Slidex.Voting.Session do
     if is_binary(title) and String.trim(title) == "",
       do: put_change(changeset, :title, to_string(Date.utc_today())),
       else: changeset
+  end
+
+  def put_slug(%Ecto.Changeset{} = changeset) do
+    put_change(changeset, :slug, Ecto.ULID.generate())
   end
 end

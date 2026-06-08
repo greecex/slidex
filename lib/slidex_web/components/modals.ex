@@ -55,7 +55,7 @@ defmodule SlidexWeb.Components.Modals do
               {render_slot(@title)}
             </h3>
             <form :if={@closeable} method="dialog">
-              <button class="btn btn-sm btn-circle btn-ghost"><.icon name="hero-x" /></button>
+              <button class="btn btn-sm btn-circle btn-ghost"><.icon name="hero-x-mark" /></button>
             </form>
           </header>
 

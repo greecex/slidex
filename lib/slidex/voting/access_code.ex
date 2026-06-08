@@ -1,4 +1,4 @@
-defmodule Slidex.Campaigns.AccessCode do
+defmodule Slidex.Voting.AccessCode do
   # Crockford Base32 (no I, L, O, U)
   @alphabet "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
   @len 6

@@ -45,7 +45,7 @@ defmodule SlidexWeb.Router do
     end
   end
 
-  ## Authentication routes
+  ## Authenticated routes
 
   scope "/", SlidexWeb do
     pipe_through [:browser, :require_authenticated_user]
@@ -60,6 +60,9 @@ defmodule SlidexWeb.Router do
       live "/polls/:id", PollLive.Show, :show
       live "/polls/:id/questions", PollLive.Questions, :edit
       live "/polls/:id/edit", PollLive.Form, :edit
+
+      live "/sessions/new", SessionLive.Form, :new
+      live "/sessions/:id/edit", SessionLive.Form, :edit
     end
 
     post "/users/update-password", UserSessionController, :update_password

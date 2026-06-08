@@ -1,9 +1,10 @@
 defmodule SlidexWeb.PollLive.Show do
   use SlidexWeb, :live_view
 
-  alias Slidex.Campaigns
+  alias Slidex.{Campaigns, Voting}
+  alias Slidex.Campaigns.Poll
   alias Slidex.Repo
-  alias SlidexWeb.PollLive.Components.SessionModal
+  alias SlidexWeb.Components.Timers
 
   @impl true
   def render(assigns) do
@@ -11,7 +12,11 @@ defmodule SlidexWeb.PollLive.Show do
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <.header>
         {@poll.title}
-        <:subtitle>This is a poll record from your database.</:subtitle>
+        <:subtitle>
+          <div :if={@poll.archived_at} class="badge badge-warning badge-soft badge-sm">
+            <.icon name="hero-archive-box" /> Archived
+          </div>
+        </:subtitle>
         <:actions>
           <.button navigate={~p"/polls"}>
             <.icon name="hero-arrow-left" />
@@ -22,62 +27,181 @@ defmodule SlidexWeb.PollLive.Show do
         </:actions>
       </.header>
 
-      <.list>
-        <:item title="Is public">{@poll.is_public}</:item>
-        <:item title="Access code">{@poll.access_code}</:item>
-        <:item title="Expires at">{@poll.expires_at}</:item>
-        <:item title="Closed at">{@poll.closed_at}</:item>
-        <:item title="Archived at">{@poll.archived_at}</:item>
-      </.list>
+      <p :if={@poll.description}>{@poll.description}</p>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <!-- Voting -->
-        <div class="space-y-2">
-          <h3 class="font-semibold">
-            Voting sessions
-            <div :if={@sessions.voting != []} class="badge badge-md badge-soft">
-              {length(@sessions.voting)}
-            </div>
-          </h3>
+      <div class={[
+        "grid grid-cols-1 gap-8 mt-6",
+        if(@sessions.voting == [] and @sessions.surveys == [], do: "lg:grid-cols-2")
+      ]}>
+        <!-- Voting Sessions -->
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold flex items-center gap-x-2 w-full justify-between">
+              <div>
+                Voting sessions
+                <span :if={@sessions.voting != []} class="badge badge-md badge-soft">
+                  {length(@sessions.voting)}
+                </span>
+              </div>
+              <.add_voting_button
+                :if={@sessions.voting !== []}
+                poll={@poll}
+                disabled={@poll.archived_at}
+              />
+            </h3>
+          </div>
+
           <%= if @sessions.voting == [] do %>
-            <.no_voting_yet />
+            <.no_voting_yet poll={@poll} disabled={@poll.archived_at} />
           <% else %>
-            <div class="p-3 bg-base-100">
-              <%= for s <- @sessions.voting do %>
-                <div>{s.title}</div>
+            <div class="space-y-2">
+              <%= for session <- @sessions.voting do %>
+                <.session_row session={session} poll={@poll} />
               <% end %>
             </div>
           <% end %>
         </div>
         
-    <!-- Surveys -->
-        <div class="space-y-2">
-          <h3 class="font-semibold">
-            Surveys
-            <div :if={@sessions.surveys != []} class="badge badge-md badge-soft">
-              {length(@sessions.surveys)}
-            </div>
-          </h3>
+    <!-- Survey Sessions -->
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold flex items-center gap-x-2 w-full justify-between">
+              <div>
+                Surveys
+                <span :if={@sessions.surveys != []} class="badge badge-md badge-soft">
+                  {length(@sessions.surveys)}
+                </span>
+              </div>
+              <.add_survey_button
+                :if={@sessions.surveys !== []}
+                poll={@poll}
+                disabled={@poll.archived_at}
+              />
+            </h3>
+          </div>
+
           <%= if @sessions.surveys == [] do %>
-            <.no_surveys_yet />
+            <.no_surveys_yet poll={@poll} disabled={@poll.archived_at} />
           <% else %>
-            <div class="p-3 bg-base-100">
-              <%= for s <- @sessions.surveys do %>
-                <div>{s.title}</div>
+            <div class="space-y-2">
+              <%= for session <- @sessions.surveys do %>
+                <.session_row session={session} poll={@poll} />
               <% end %>
             </div>
           <% end %>
         </div>
       </div>
-
-      <.live_component
-        module={SlidexWeb.PollLive.Components.SessionModal}
-        id="debug-test"
-        show={not is_nil(@show_modal)}
-        current_scope={@current_scope}
-        is_survey={@show_modal == :survey}
-      />
     </Layouts.app>
+    """
+  end
+
+  # Reusable session row component
+  attr :session, :map, required: true
+  attr :poll, :map, required: true
+
+  def session_row(assigns) do
+    ~H"""
+    <div
+      id={@session.id}
+      class="flex justify-between gap-x-4 rounded-lg border border-base-300 bg-base-100 p-3 ps-4 group hover:bg-base-200 hover:ring-2 hover:ring-primary transition-all items-start"
+    >
+      <div class="min-w-0 flex-1">
+        <div class="font-medium truncate">{@session.title}</div>
+        <div class="text-xs text-base-content/60">
+          {String.capitalize(to_string(@session.state))}
+        </div>
+        <div
+          :if={@session.closed_at}
+          class="tooltip tooltip-sm"
+          data-tip={"Closed at #{@session.closed_at}"}
+        >
+          <.icon name="hero-stop-circle" class="size-5" />
+        </div>
+
+        <div
+          :if={!@session.closed_at and @poll.questions != []}
+          class="tooltip tooltip-sm"
+          data-tip="Open for voting"
+        >
+          <.icon name="hero-play-circle" class="size-5 text-success" />
+        </div>
+
+        <div :if={@session.is_public} class="tooltip tooltip-right" data-tip="Public">
+          <.icon name="hero-eye" class="size-5 text-info" />
+        </div>
+
+        <div
+          :if={!is_nil(@session.access_code)}
+          class="tooltip tooltip-sm"
+          data-tip="Requires access code for participation"
+        >
+          <.icon name="hero-lock-closed" class="size-5" />
+        </div>
+
+        <%= if @session.expires_at do %>
+          <span class="text-xs">
+            <Timers.expires_at datetime={@session.expires_at} />
+          </span>
+        <% end %>
+      </div>
+
+      <div class="dropdown dropdown-bottom dropdown-end">
+        <div tabindex="0" role="button" class="btn btn-ghost p-1">
+          <.icon name="hero-ellipsis-vertical" class="size-6" />
+        </div>
+        <ul
+          tabindex="-1"
+          class="dropdown-content menu bg-base-100 rounded-box z-1 w-42 p-2 shadow-sm gap-y-2"
+        >
+          <%= if !@poll.archived_at and !@session.closed_at do %>
+            <li>
+              <.button
+                navigate={~p"/sessions/#{@session}/edit"}
+                class="btn btn-primary btn-soft justify-start"
+              >
+                <.icon name="hero-pencil-square" /> Edit
+              </.button>
+            </li>
+
+            <div class="divider divider-y my-0" />
+          <% end %>
+
+          <li :if={!@session.closed_at}>
+            <.button
+              phx-click={JS.push("close", value: %{id: @session.id})}
+              data-confirm="Are you sure?"
+              class="btn btn-soft btn-neutral justify-start"
+            >
+              <.icon name="hero-stop" /> Close
+            </.button>
+          </li>
+
+          <li :if={@session.closed_at}>
+            <.button
+              phx-click={JS.push("reopen", value: %{id: @session.id})}
+              data-confirm="Are you sure?"
+              class="btn btn-soft btn-success justify-start"
+            >
+              <.icon name="hero-play" /> Reopen
+            </.button>
+          </li>
+
+          <li>
+            <.button
+              phx-click={
+                JS.push("delete", value: %{id: @session.id})
+                |> JS.hide(to: "##{@session.id}")
+                |> JS.hide(to: ".dropdown-content")
+              }
+              data-confirm="Are you sure?"
+              class="btn btn-soft btn-error justify-start"
+            >
+              <.icon name="hero-trash" /> Delete
+            </.button>
+          </li>
+        </ul>
+      </div>
+    </div>
     """
   end
 
@@ -92,91 +216,121 @@ defmodule SlidexWeb.PollLive.Show do
       |> Campaigns.get_poll!(id)
       |> Repo.preload(:sessions)
 
-    sessions =
-      Enum.reduce(poll.sessions || [], %{voting: [], surveys: []}, fn s, acc ->
-        if s.is_survey do
-          Map.put(acc, :surveys, acc.surveys ++ [s])
-        else
-          Map.put(acc, :voting, acc.voting ++ [s])
-        end
-      end)
+    sessions = group_sessions(poll.sessions || [])
 
     {:ok,
      socket
      |> assign(:page_title, "Show Poll")
      |> assign(:poll, poll)
-     |> assign(:show_modal, nil)
      |> assign(:sessions, sessions)}
   end
 
-  @impl true
-  def handle_event("add_voting", _, socket) do
-    {:noreply, assign(socket, :show_modal, :voting)}
+  defp group_sessions(sessions) do
+    Enum.reduce(sessions, %{voting: [], surveys: []}, fn s, acc ->
+      if s.state == :survey do
+        Map.put(acc, :surveys, acc.surveys ++ [s])
+      else
+        Map.put(acc, :voting, acc.voting ++ [s])
+      end
+    end)
   end
 
   @impl true
-  def handle_event("add_survey", _, socket) do
-    {:noreply, assign(socket, :show_modal, :survey)}
+  def handle_event("close", %{"id" => id}, socket) do
+    scope = socket.assigns.current_scope
+    session = Voting.get_session!(scope, id)
+    {:ok, _} = Voting.close_session(scope, session)
+
+    poll =
+      socket.assigns.current_scope
+      |> Campaigns.get_poll!(socket.assigns.poll.id)
+      |> Repo.preload(:sessions)
+
+    sessions = group_sessions(poll.sessions)
+
+    {:noreply, assign(socket, poll: poll, sessions: sessions)}
   end
 
   @impl true
-  def handle_event("close_modal", _params, socket) do
-    {:noreply, assign(socket, :show_modal, nil)}
+  def handle_event("reopen", %{"id" => id}, socket) do
+    scope = socket.assigns.current_scope
+    session = Voting.get_session!(scope, id)
+    {:ok, _} = Voting.reopen_session(scope, session)
+
+    poll =
+      socket.assigns.current_scope
+      |> Campaigns.get_poll!(socket.assigns.poll.id)
+      |> Repo.preload(:sessions)
+
+    sessions = group_sessions(poll.sessions)
+
+    {:noreply, assign(socket, poll: poll, sessions: sessions)}
   end
 
   @impl true
-  def handle_info(
-        {:updated, %Slidex.Campaigns.Poll{id: id} = poll},
-        %{assigns: %{poll: %{id: id}}} = socket
-      ) do
+  def handle_event("delete", %{"id" => id}, socket) do
+    scope = socket.assigns.current_scope
+    session = Voting.get_session!(scope, id)
+    {:ok, _} = Voting.delete_session(scope, session)
+
+    poll =
+      socket.assigns.current_scope
+      |> Campaigns.get_poll!(socket.assigns.poll.id)
+      |> Repo.preload(:sessions)
+
+    sessions = group_sessions(poll.sessions)
+
+    {:noreply, assign(socket, poll: poll, sessions: sessions)}
+  end
+
+  @impl true
+  def handle_info({:updated, %Poll{id: id} = poll}, %{assigns: %{poll: %{id: id}}} = socket) do
     {:noreply, assign(socket, :poll, poll)}
   end
 
-  def handle_info(
-        {:deleted, %Slidex.Campaigns.Poll{id: id}},
-        %{assigns: %{poll: %{id: id}}} = socket
-      ) do
+  def handle_info({:deleted, %Poll{id: id}}, %{assigns: %{poll: %{id: id}}} = socket) do
     {:noreply,
      socket
      |> put_flash(:error, "The current poll was deleted.")
      |> push_navigate(to: ~p"/polls")}
   end
 
-  def handle_info({type, %Slidex.Campaigns.Poll{}}, socket)
-      when type in [:created, :updated, :deleted] do
+  def handle_info({type, %Poll{}}, socket)
+      when type in [:created, :updated, :deleted, :duplicated] do
     {:noreply, socket}
   end
 
-  def handle_info({:session_created, session}, socket) do
-    key = if session.is_survey, do: :surveys, else: :voting
-
-    sessions =
-      Map.update!(socket.assigns.sessions, key, &(&1 ++ [session]))
-
+  def handle_info({:archived, %Poll{} = poll}, socket) do
     {:noreply,
      socket
-     |> assign(:sessions, sessions)
-     |> assign(:show_modal, nil)
-     |> put_flash(:info, "Session created successfully")}
+     |> put_flash(:info, "The current poll was archived.")
+     |> assign(:poll, poll)}
   end
 
-  def handle_info({:close_modal}, socket) do
-    {:noreply, assign(socket, :show_modal, nil)}
+  def handle_info({:unarchived, %Poll{} = poll}, socket) do
+    {:noreply,
+     socket
+     |> put_flash(:info, "The current poll was unarchived.")
+     |> assign(:poll, poll)}
   end
+
+  def handle_info({:duplicated, %Poll{} = poll}, socket) do
+    {:noreply,
+     socket
+     |> put_flash(:error, "The current poll was duplicated.")
+     |> assign(:poll, poll)}
+  end
+
+  attr :poll, :map, required: true
+  attr :disabled, :boolean, required: false, default: false
 
   def no_voting_yet(assigns) do
     ~H"""
-    <div class="rounded border border-dashed border-base-300 bg-base-200/50 px-4 py-5">
-      <div class="flex flex-col items-center text-center gap-y-3">
-        <div class="flex flex-row items-center justify-center gap-x-2">
-          <.icon
-            name="hero-face-frown"
-            class="size-8 text-base-content/50"
-          />
-          <p class="text-sm font-semibold text-base-content">No voting sessions added yet!</p>
-        </div>
-
-        <.add_voting_button />
+    <div class="rounded border border-dashed border-base-300 bg-base-200/50 px-4 py-6 text-center">
+      <div class="flex flex-col items-center gap-y-3">
+        <.icon name="hero-face-frown" class="size-8 text-base-content/50" />
+        <p class="text-sm font-semibold">No voting sessions</p>
+        <.add_voting_button poll={@poll} disabled={@disabled} />
       </div>
     </div>
     """
@@ -184,17 +338,11 @@ defmodule SlidexWeb.PollLive.Show do
 
   def no_surveys_yet(assigns) do
     ~H"""
-    <div class="rounded border border-dashed border-base-300 bg-base-200/50 px-4 py-5">
-      <div class="flex flex-col items-center text-center gap-y-3">
-        <div class="flex flex-row items-center justify-center gap-x-2">
-          <.icon
-            name="hero-face-frown"
-            class="size-8 text-base-content/50"
-          />
-          <p class="text-sm font-semibold text-base-content">No surveys added yet!</p>
-        </div>
-
-        <.add_survey_button />
+    <div class="rounded border border-dashed border-base-300 bg-base-200/50 px-4 py-6 text-center">
+      <div class="flex flex-col items-center gap-y-3">
+        <.icon name="hero-face-frown" class="size-8 text-base-content/50" />
+        <p class="text-sm font-semibold">No surveys</p>
+        <.add_survey_button poll={@poll} disabled={@disabled} />
       </div>
     </div>
     """
@@ -203,8 +351,9 @@ defmodule SlidexWeb.PollLive.Show do
   def add_voting_button(assigns) do
     ~H"""
     <.button
-      phx-click="add_voting"
-      class={["btn btn-outline btn-primary btn-sm"]}
+      navigate={~p"/sessions/new?poll=#{@poll.id}&kind=voting"}
+      class="btn btn-outline btn-primary btn-sm"
+      disabled={@disabled}
     >
       <.icon name="hero-plus" /> Add Voting
     </.button>
@@ -214,31 +363,12 @@ defmodule SlidexWeb.PollLive.Show do
   def add_survey_button(assigns) do
     ~H"""
     <.button
-      phx-click="add_survey"
-      class={["btn btn-outline btn-primary btn-sm"]}
+      navigate={~p"/sessions/new?poll=#{@poll.id}&kind=survey"}
+      class="btn btn-outline btn-primary btn-sm"
+      disabled={@disabled}
     >
       <.icon name="hero-plus" /> Add Survey
     </.button>
-    """
-  end
-end
-
-defmodule SlidexWeb.PollLive.Components.DebugTest do
-  use SlidexWeb, :live_component
-
-  @impl true
-  def update(assigns, socket) do
-    IO.puts("=== DEBUG COMPONENT UPDATE CALLED ===")
-    IO.inspect(assigns, label: "ASSIGNS RECEIVED")
-    {:ok, assign(socket, assigns)}
-  end
-
-  @impl true
-  def render(assigns) do
-    ~H"""
-    <div style="background: lime; color: black; padding: 30px; margin: 20px; border: 5px solid red; font-size: 24px;">
-      ✅ DEBUG COMPONENT IS RENDERING<br /> show={@show}<br /> is_survey={@is_survey}
-    </div>
     """
   end
 end

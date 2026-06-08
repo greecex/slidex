@@ -78,6 +78,12 @@ defmodule Slidex.Campaigns do
     |> Preloader.with_preloads(opts)
   end
 
+  def get_poll(%Scope{} = scope, id, opts \\ []) do
+    Poll
+    |> Repo.get_by(id: id, user_id: scope.user.id)
+    |> Preloader.with_preloads(opts)
+  end
+
   @doc """
   Creates a poll.
 
@@ -105,7 +111,8 @@ defmodule Slidex.Campaigns do
 
     attrs =
       poll
-      |> Map.take([:title, :is_public, :access_code, :expires_at])
+      # :is_public, :access_code,
+      |> Map.take([:title, :description])
       |> Map.put(:title, generate_duplicate_title(scope, poll.title))
 
     with {:ok, copied_poll = %Poll{}} <- create_poll(scope, attrs) do
@@ -236,40 +243,6 @@ defmodule Slidex.Campaigns do
       {:ok, unarchived}
     else
       %Poll{archived_at: nil} -> {:ok, poll}
-      error -> error
-    end
-  end
-
-  def close_poll(%Scope{} = scope, %Poll{} = poll) do
-    :ok = authorize(scope, poll)
-
-    with %Poll{closed_at: nil} <- poll,
-         attrs = %{closed_at: DateTime.utc_now()},
-         {:ok, closed} <-
-           scope
-           |> change_poll(poll, attrs)
-           |> Repo.update() do
-      broadcast_poll(scope, {:closed, closed})
-      {:ok, closed}
-    else
-      %Poll{closed_at: %DateTime{}} -> {:ok, poll}
-      error -> error
-    end
-  end
-
-  def reopen_poll(%Scope{} = scope, %Poll{} = poll) do
-    :ok = authorize(scope, poll)
-
-    with %Poll{closed_at: %DateTime{}} <- poll,
-         attrs = %{closed_at: nil},
-         {:ok, reopened} <-
-           scope
-           |> change_poll(poll, attrs)
-           |> Repo.update() do
-      broadcast_poll(scope, {:reopened, reopened})
-      {:ok, reopened}
-    else
-      %Poll{closed_at: nil} -> {:ok, poll}
       error -> error
     end
   end
