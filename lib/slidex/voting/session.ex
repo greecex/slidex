@@ -10,6 +10,9 @@ defmodule Slidex.Voting.Session do
     field :title, :string
     field :state, Ecto.Enum, values: [:pending, :active, :ended]
     field :is_survey, :boolean, default: false
+    field :access_code, :string
+    field :expires_at, :utc_datetime
+    field :closed_at, :utc_datetime_usec
 
     belongs_to :poll, Poll
     belongs_to :current_question, Question
@@ -32,7 +35,7 @@ defmodule Slidex.Voting.Session do
   defp maybe_set_title(%Ecto.Changeset{} = changeset) do
     title = get_field(changeset, :title, "")
 
-    if String.trim(title) == "",
+    if is_binary(title) and String.trim(title) == "",
       do: put_change(changeset, :title, to_string(Date.utc_today())),
       else: changeset
   end

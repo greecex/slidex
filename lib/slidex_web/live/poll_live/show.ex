@@ -2,6 +2,8 @@ defmodule SlidexWeb.PollLive.Show do
   use SlidexWeb, :live_view
 
   alias Slidex.Campaigns
+  alias Slidex.Repo
+  alias SlidexWeb.PollLive.Components.SessionModal
 
   @impl true
   def render(assigns) do
@@ -29,8 +31,7 @@ defmodule SlidexWeb.PollLive.Show do
       </.list>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        
-    <!-- Voting -->
+        <!-- Voting -->
         <div class="space-y-2">
           <h3 class="font-semibold">
             Voting sessions
@@ -68,6 +69,14 @@ defmodule SlidexWeb.PollLive.Show do
           <% end %>
         </div>
       </div>
+
+      <.live_component
+        module={SlidexWeb.PollLive.Components.SessionModal}
+        id="debug-test"
+        show={not is_nil(@show_modal)}
+        current_scope={@current_scope}
+        is_survey={@show_modal == :survey}
+      />
     </Layouts.app>
     """
   end
@@ -78,10 +87,13 @@ defmodule SlidexWeb.PollLive.Show do
       Campaigns.subscribe_polls(socket.assigns.current_scope)
     end
 
-    poll = Campaigns.get_poll!(socket.assigns.current_scope, id)
+    poll =
+      socket.assigns.current_scope
+      |> Campaigns.get_poll!(id)
+      |> Repo.preload(:sessions)
 
     sessions =
-      Enum.reduce(poll.sessions, %{voting: [], surveys: []}, fn s, acc ->
+      Enum.reduce(poll.sessions || [], %{voting: [], surveys: []}, fn s, acc ->
         if s.is_survey do
           Map.put(acc, :surveys, acc.surveys ++ [s])
         else
@@ -93,7 +105,23 @@ defmodule SlidexWeb.PollLive.Show do
      socket
      |> assign(:page_title, "Show Poll")
      |> assign(:poll, poll)
+     |> assign(:show_modal, nil)
      |> assign(:sessions, sessions)}
+  end
+
+  @impl true
+  def handle_event("add_voting", _, socket) do
+    {:noreply, assign(socket, :show_modal, :voting)}
+  end
+
+  @impl true
+  def handle_event("add_survey", _, socket) do
+    {:noreply, assign(socket, :show_modal, :survey)}
+  end
+
+  @impl true
+  def handle_event("close_modal", _params, socket) do
+    {:noreply, assign(socket, :show_modal, nil)}
   end
 
   @impl true
@@ -117,6 +145,23 @@ defmodule SlidexWeb.PollLive.Show do
   def handle_info({type, %Slidex.Campaigns.Poll{}}, socket)
       when type in [:created, :updated, :deleted] do
     {:noreply, socket}
+  end
+
+  def handle_info({:session_created, session}, socket) do
+    key = if session.is_survey, do: :surveys, else: :voting
+
+    sessions =
+      Map.update!(socket.assigns.sessions, key, &(&1 ++ [session]))
+
+    {:noreply,
+     socket
+     |> assign(:sessions, sessions)
+     |> assign(:show_modal, nil)
+     |> put_flash(:info, "Session created successfully")}
+  end
+
+  def handle_info({:close_modal}, socket) do
+    {:noreply, assign(socket, :show_modal, nil)}
   end
 
   def no_voting_yet(assigns) do
@@ -149,7 +194,7 @@ defmodule SlidexWeb.PollLive.Show do
           <p class="text-sm font-semibold text-base-content">No surveys added yet!</p>
         </div>
 
-        <.add_voting_button />
+        <.add_survey_button />
       </div>
     </div>
     """
@@ -166,7 +211,7 @@ defmodule SlidexWeb.PollLive.Show do
     """
   end
 
-  def add_surve_button(assigns) do
+  def add_survey_button(assigns) do
     ~H"""
     <.button
       phx-click="add_survey"
@@ -174,6 +219,26 @@ defmodule SlidexWeb.PollLive.Show do
     >
       <.icon name="hero-plus" /> Add Survey
     </.button>
+    """
+  end
+end
+
+defmodule SlidexWeb.PollLive.Components.DebugTest do
+  use SlidexWeb, :live_component
+
+  @impl true
+  def update(assigns, socket) do
+    IO.puts("=== DEBUG COMPONENT UPDATE CALLED ===")
+    IO.inspect(assigns, label: "ASSIGNS RECEIVED")
+    {:ok, assign(socket, assigns)}
+  end
+
+  @impl true
+  def render(assigns) do
+    ~H"""
+    <div style="background: lime; color: black; padding: 30px; margin: 20px; border: 5px solid red; font-size: 24px;">
+      ✅ DEBUG COMPONENT IS RENDERING<br /> show={@show}<br /> is_survey={@is_survey}
+    </div>
     """
   end
 end

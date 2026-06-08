@@ -44,9 +44,18 @@ defmodule Slidex.Voting do
     |> with_preloads
   end
 
-  def delete_session(%Scope{} = scope, %Session{} = voting_session) do
-    :ok = authorize(scope, voting_session)
+  def delete_session(%Scope{} = scope, %Session{} = session) do
+    :ok = authorize(scope, session)
 
-    Repo.delete(voting_session)
+    Repo.delete(session)
+  end
+
+  def change_session(%Scope{} = scope, %Session{} = session, attrs \\ %{}) do
+    # Only authorize if the session already belongs to a poll
+    if session.poll_id do
+      :ok = authorize(scope, session)
+    end
+
+    Session.changeset(session, attrs)
   end
 end

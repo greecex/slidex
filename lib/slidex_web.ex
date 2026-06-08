@@ -86,6 +86,7 @@ defmodule SlidexWeb do
       import Phoenix.HTML
       # Core UI components
       import SlidexWeb.CoreComponents
+      import SlidexWeb.Components.Modals
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS
