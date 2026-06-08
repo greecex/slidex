@@ -1,7 +1,7 @@
 defmodule SlidexWeb.PollLive.Components.OptionLive do
   use SlidexWeb, :live_component
 
-  alias Slidex.Polling
+  alias Slidex.{Polling, Search}
 
   @impl true
   def mount(socket) do
@@ -120,6 +120,31 @@ defmodule SlidexWeb.PollLive.Components.OptionLive do
       <% end %>
 
       <%= if !@editing do %>
+        <div class="badge badge-md badge-neutral badge-soft">{@idx + 1}</div>
+        <div class="flex flex-col lg:flex-row gap-1">
+          <.button
+            type="button"
+            phx-click="reorder"
+            phx-value-direction="higher"
+            phx-target={@myself}
+            class="btn btn-neutral btn-soft btn-xs"
+            disabled={@idx == 0}
+          >
+            <.icon name="hero-chevron-up" />
+          </.button>
+
+          <.button
+            type="button"
+            phx-click="reorder"
+            phx-value-direction="lower"
+            phx-target={@myself}
+            class="btn btn-neutral btn-soft btn-xs"
+            disabled={@idx == @count - 1}
+          >
+            <.icon name="hero-chevron-down" />
+          </.button>
+        </div>
+
         <div class="flex-1">
           <div class="flex flex-row gap-x-0">
             <%= if @is_correct do %>
@@ -160,7 +185,7 @@ defmodule SlidexWeb.PollLive.Components.OptionLive do
 
     results =
       if String.length(search_term) > 2 do
-        Polling.search_option_bodies(
+        Search.option_body(
           socket.assigns.current_scope,
           search_term,
           limit: 8,
@@ -252,5 +277,17 @@ defmodule SlidexWeb.PollLive.Components.OptionLive do
       send(self(), {:option_deleted, socket.assigns.option.id})
       {:noreply, assign(socket, :editing, false)}
     end
+  end
+
+  # Reordering
+
+  @impl true
+  def handle_event("reorder", %{"direction" => direction}, socket) do
+    direction = String.to_existing_atom(direction)
+
+    Polling.reorder(socket.assigns.current_scope, socket.assigns.option, direction)
+    send(self(), {:options_reordered, socket.assigns.question})
+
+    {:noreply, socket}
   end
 end

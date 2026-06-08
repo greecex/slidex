@@ -1,7 +1,7 @@
 defmodule SlidexWeb.PollLive.Components.QuestionLive do
   use SlidexWeb, :live_component
 
-  alias Slidex.Polling
+  alias Slidex.{Polling, Search}
   alias SlidexWeb.PollLive.Components.OptionLive
 
   @impl true
@@ -37,23 +37,52 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
     ~H"""
     <div class="card bg-base border border-base-200 p-3 shadow">
       <%= if !@editing do %>
-        <div class="w-full flex flex-row justify-between items-center">
-          <.button
-            type="button"
-            phx-click="delete"
-            class="btn btn-soft btn-sm btn-error"
-            phx-target={@myself}
-          >
-            <.icon name="hero-trash" /> Delete
-          </.button>
-          <.button
-            type="button"
-            phx-click="edit"
-            phx-target={@myself}
-            class="btn btn-primary btn-soft btn-sm"
-          >
-            <.icon name="hero-pencil-square" /> Edit
-          </.button>
+        <div class="w-full flex flex-row justify-between items-start gap-x-1">
+          <div class="flex flex-row items-start justify-start gap-x-2">
+            <div class="badge badge-md badge-neutral badge-soft me-1">{@idx + 1}</div>
+            <div class="flex flex-row gap-1">
+              <.button
+                type="button"
+                phx-click="reorder"
+                phx-value-direction="higher"
+                phx-target={@myself}
+                class="btn btn-neutral btn-soft btn-xs"
+                disabled={@idx == 0}
+              >
+                <.icon name="hero-chevron-up" />
+              </.button>
+
+              <.button
+                type="button"
+                phx-click="reorder"
+                phx-value-direction="lower"
+                phx-target={@myself}
+                class="btn btn-neutral btn-soft btn-xs"
+                disabled={@idx == @count - 1}
+              >
+                <.icon name="hero-chevron-down" />
+              </.button>
+            </div>
+          </div>
+
+          <div class="flex flex-row justify-end items-center gap-x-1">
+            <.button
+              type="button"
+              phx-click="edit"
+              phx-target={@myself}
+              class="btn btn-primary btn-soft btn-sm"
+            >
+              <.icon name="hero-pencil-square" /> Edit
+            </.button>
+            <.button
+              type="button"
+              phx-click="delete"
+              class="btn btn-soft btn-sm btn-error"
+              phx-target={@myself}
+            >
+              <.icon name="hero-trash" /> Delete
+            </.button>
+          </div>
         </div>
 
         <div class="divider divider-y my-1 divider-base-200" />
@@ -65,13 +94,15 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
         <div class="mt-3">
           <%= if @options != [] do %>
             <div class="space-y-2">
-              <%= for option <- @options do %>
+              <%= for {option, idx} <- Enum.with_index(@options) do %>
                 <.live_component
                   module={OptionLive}
                   id={"option-#{option_id(option)}"}
                   option={option}
                   current_scope={@current_scope}
                   question={@question}
+                  idx={idx}
+                  count={length(@options)}
                 />
               <% end %>
               <div class="mt-3">
@@ -157,7 +188,7 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
 
     results =
       if String.length(search_term) > 2 do
-        Polling.search_question_bodies(
+        Search.question_body(
           socket.assigns.current_scope,
           search_term,
           limit: 8,
@@ -258,6 +289,18 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
     }
 
     send(self(), {:add_temporary_option, socket.assigns.question, new_option})
+
+    {:noreply, socket}
+  end
+
+  # Reordering
+
+  @impl true
+  def handle_event("reorder", %{"direction" => direction}, socket) do
+    direction = String.to_existing_atom(direction)
+
+    Polling.reorder(socket.assigns.current_scope, socket.assigns.question, direction)
+    send(self(), {:questions_reordered, socket.assigns.poll})
 
     {:noreply, socket}
   end

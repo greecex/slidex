@@ -1,15 +1,15 @@
 defmodule SlidexWeb.PollLive.Questions do
   use SlidexWeb, :live_view
 
-  alias Slidex.Campaigns
-
+  alias Slidex.{Campaigns, Polling, Preloader}
   alias SlidexWeb.PollLive.Components.QuestionLive
 
   @impl true
   def mount(%{"id" => poll_id}, _session, socket) do
     poll =
       socket.assigns.current_scope
-      |> Campaigns.get_poll!(poll_id, questions: [:options])
+      |> Campaigns.get_poll!(poll_id)
+      |> Preloader.with_preloads()
 
     {:ok,
      socket
@@ -48,13 +48,15 @@ defmodule SlidexWeb.PollLive.Questions do
         </div>
 
         <div :if={@questions != []} class="flex flex-col gap-y-3">
-          <%= for question <- @questions do %>
+          <%= for {question, idx} <- Enum.with_index(@questions) do %>
             <.live_component
               module={QuestionLive}
               id={"question-#{question_id(question)}"}
               question={question}
               current_scope={@current_scope}
               poll={@poll}
+              idx={idx}
+              count={length(@questions)}
             />
           <% end %>
           <.add_question_button phx_target={self()} wide />
@@ -70,11 +72,18 @@ defmodule SlidexWeb.PollLive.Questions do
 
   @impl true
   def handle_event("add_question", _params, socket) do
+    max_position =
+      socket.assigns.questions
+      |> Enum.map(&Map.get(&1, :position, 0))
+      |> Enum.max(fn -> 0 end)
+
     temp_question = %{
       temp_id: "temp_#{System.unique_integer([:positive])}",
       body: "",
       options: [],
-      poll_id: socket.assigns.poll.id
+      poll_id: socket.assigns.poll.id,
+      editing: true,
+      position: max_position + 1
     }
 
     questions = socket.assigns.questions ++ [temp_question]
@@ -93,8 +102,14 @@ defmodule SlidexWeb.PollLive.Questions do
   def handle_info({:add_temporary_option, question, new_option}, socket) do
     questions =
       Enum.map(socket.assigns.questions, fn q ->
-        if (q.id && q.id == question.id) or
-             (Map.get(q, :temp_id) && Map.get(q, :temp_id) == Map.get(question, :temp_id)) do
+        if matches_question?(q, question) do
+          max_position =
+            q.options
+            |> Enum.map(& &1.position)
+            |> Enum.max(fn -> 0 end)
+
+          new_option = Map.put(new_option, :position, max_position + 1)
+
           Map.update(q, :options, [new_option], &(&1 ++ [new_option]))
         else
           q
@@ -230,6 +245,33 @@ defmodule SlidexWeb.PollLive.Questions do
       end
 
     {:noreply, assign(socket, :questions, questions)}
+  end
+
+  def handle_info({:options_reordered, question}, socket) do
+    questions =
+      Enum.map(socket.assigns.questions, fn q ->
+        if matches_question?(q, question) do
+          %{q | options: Polling.list_options(socket.assigns.current_scope, q)}
+        else
+          q
+        end
+      end)
+
+    {:noreply, assign(socket, :questions, questions)}
+  end
+
+  def handle_info({:questions_reordered, poll}, socket) do
+    refreshed_poll = Preloader.with_preloads(poll)
+
+    {:noreply,
+     socket
+     |> assign(:poll, refreshed_poll)
+     |> assign(:questions, refreshed_poll.questions)}
+  end
+
+  defp matches_question?(q, question) do
+    (q.id && q.id == Map.get(question, :id)) or
+      (Map.get(q, :temp_id) && Map.get(q, :temp_id) == Map.get(question, :temp_id))
   end
 
   def add_question_button(assigns) do

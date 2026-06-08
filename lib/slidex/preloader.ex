@@ -15,28 +15,37 @@ defmodule Slidex.Preloader do
     |> Enum.uniq()
     |> then(fn struct_atoms ->
       case struct_atoms do
-        [atom] ->
-          Repo.preload(records, atom |> struct() |> preloads())
+        [] ->
+          []
 
-        [_ | _] ->
+        [struct_module] ->
+          preload_spec = struct_module |> struct() |> preloads()
+
+          records
+          |> Repo.preload(preload_spec)
+          |> maybe_sort_questions()
+
+        [_ | _] = _multiple_struct_types ->
           Logger.debug("""
           with_preloads/2 called with opts on a heterogeneous list of structs.
-          opts will be ignored; default preloads per struct will be used.
+          opts will be ignored; default preloads will be used per struct .
           """)
 
           Enum.map(records, &with_preloads(&1))
-
-        [] ->
-          []
       end
     end)
   end
 
-  def with_preloads(record, opts)
-      when is_struct(record) and is_list(opts) do
-    opts
-    |> Keyword.get(:preloads, preloads(record))
-    |> then(&if(is_list(&1), do: Repo.preload(record, &1), else: record))
+  def with_preloads(record, opts) when is_struct(record) and is_list(opts) do
+    preload_spec = Keyword.get(opts, :preloads, preloads(record))
+
+    if is_list(preload_spec) do
+      record
+      |> Repo.preload(preload_spec)
+      |> maybe_sort_questions()
+    else
+      record
+    end
   end
 
   def with_preloads(nil, _opts), do: nil
@@ -50,6 +59,8 @@ defmodule Slidex.Preloader do
       do: {:ok, with_preloads(records, opts)}
 
   def with_preloads({:error, _} = error, _opts), do: error
+
+  # Preload specs
 
   defp preloads(%Campaigns.Poll{}) do
     [
@@ -66,11 +77,17 @@ defmodule Slidex.Preloader do
     ]
   end
 
-  defp preloads(%Polling.Option{}) do
-    [question: :poll]
-  end
+  defp preloads(%Polling.Option{}), do: [question: :poll]
 
-  defp sorted_options_query do
-    from(o in Polling.Option, order_by: [asc: o.position, asc: o.inserted_at])
-  end
+  defp sorted_options_query,
+    do: from(o in Polling.Option, order_by: [asc: o.position, asc: o.inserted_at])
+
+  defp maybe_sort_questions(records) when is_list(records),
+    do: Enum.map(records, &maybe_sort_questions/1)
+
+  defp maybe_sort_questions(%Campaigns.Poll{questions: questions} = poll)
+       when is_list(questions),
+       do: %{poll | questions: Enum.sort_by(questions, & &1.position)}
+
+  defp maybe_sort_questions(record), do: record
 end

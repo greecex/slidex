@@ -4,7 +4,7 @@ defmodule Slidex.Campaigns do
   """
 
   import Ecto.Query, warn: false
-  alias Slidex.Repo
+  alias Slidex.{Repo, Authorization, Preloader}
 
   alias Slidex.Campaigns.Poll
   alias Slidex.Accounts.Scope
@@ -71,10 +71,10 @@ defmodule Slidex.Campaigns do
       ** (Ecto.NoResultsError)
 
   """
-  def get_poll!(%Scope{} = scope, id, preloads \\ []) do
+  def get_poll!(%Scope{} = scope, id, opts \\ []) do
     Poll
     |> Repo.get_by!(id: id, user_id: scope.user.id)
-    |> Repo.preload(preloads)
+    |> Preloader.with_preloads(opts)
   end
 
   @doc """
@@ -112,7 +112,7 @@ defmodule Slidex.Campaigns do
 
   """
   def update_poll(%Scope{} = scope, %Poll{} = poll, attrs) do
-    true = poll.user_id == scope.user.id
+    :ok = Authorization.authorize(scope, poll)
 
     with {:ok, poll = %Poll{}} <-
            poll
@@ -136,7 +136,7 @@ defmodule Slidex.Campaigns do
 
   """
   def delete_poll(%Scope{} = scope, %Poll{} = poll) do
-    true = poll.user_id == scope.user.id
+    :ok = Authorization.authorize(scope, poll)
 
     with {:ok, poll = %Poll{}} <-
            Repo.delete(poll) do
@@ -146,7 +146,7 @@ defmodule Slidex.Campaigns do
   end
 
   def archive_poll(%Scope{} = scope, %Poll{} = poll) do
-    true = poll.user_id == scope.user.id
+    :ok = Authorization.authorize(scope, poll)
 
     with %Poll{archived_at: nil} <- poll,
          attrs = %{archived_at: DateTime.utc_now()},
@@ -163,7 +163,7 @@ defmodule Slidex.Campaigns do
   end
 
   def unarchive_poll(%Scope{} = scope, %Poll{} = poll) do
-    true = poll.user_id == scope.user.id
+    :ok = Authorization.authorize(scope, poll)
 
     with %Poll{archived_at: %DateTime{}} <- poll,
          attrs = %{archived_at: nil},
@@ -180,7 +180,7 @@ defmodule Slidex.Campaigns do
   end
 
   def close_poll(%Scope{} = scope, %Poll{} = poll) do
-    true = poll.user_id == scope.user.id
+    :ok = Authorization.authorize(scope, poll)
 
     with %Poll{closed_at: nil} <- poll,
          attrs = %{closed_at: DateTime.utc_now()},
@@ -197,7 +197,7 @@ defmodule Slidex.Campaigns do
   end
 
   def reopen_poll(%Scope{} = scope, %Poll{} = poll) do
-    true = poll.user_id == scope.user.id
+    :ok = Authorization.authorize(scope, poll)
 
     with %Poll{closed_at: %DateTime{}} <- poll,
          attrs = %{closed_at: nil},
@@ -223,7 +223,7 @@ defmodule Slidex.Campaigns do
 
   """
   def change_poll(%Scope{} = scope, %Poll{} = poll, attrs \\ %{}) do
-    true = poll.user_id == scope.user.id
+    :ok = Authorization.authorize(scope, poll)
 
     Poll.changeset(poll, attrs, scope)
   end
