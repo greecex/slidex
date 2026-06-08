@@ -34,33 +34,36 @@ defmodule SlidexWeb.PollLive.Questions do
       </.header>
 
       <div class="mt-8 space-y-8">
-        <div
-          :if={@questions == []}
-          class="card w-full bg-base-100 shadow border border-dashed border-base-300"
-        >
-          <div class="card-body items-center">
-            <.icon name="hero-face-frown" class="size-12 text-neutral" />
-            <h2 class="card-title text-md">
-              No questions yet
-            </h2>
-            <.add_question_button />
+        <%= if @questions != [] do %>
+          <div class="space-y-3">
+            <%= for {question, idx} <- Enum.with_index(@questions) do %>
+              <.live_component
+                module={QuestionLive}
+                id={"question-#{question_id(question)}"}
+                question={question}
+                current_scope={@current_scope}
+                poll={@poll}
+                idx={idx}
+                count={length(@questions)}
+              />
+            <% end %>
+            <.add_question_button wide />
           </div>
-        </div>
+        <% else %>
+          <div class="rounded border border-dashed border-base-300 bg-base-200/50 px-4 py-5">
+            <div class="flex flex-col items-center text-center gap-y-3">
+              <div class="flex flex-row items-center justify-center gap-x-2">
+                <.icon
+                  name="hero-question-mark-circle"
+                  class="size-8 text-base-content/50"
+                />
+                <p class="text-sm font-semibold text-base-content">No questions added yet!</p>
+              </div>
 
-        <div :if={@questions != []} class="flex flex-col gap-y-3">
-          <%= for {question, idx} <- Enum.with_index(@questions) do %>
-            <.live_component
-              module={QuestionLive}
-              id={"question-#{question_id(question)}"}
-              question={question}
-              current_scope={@current_scope}
-              poll={@poll}
-              idx={idx}
-              count={length(@questions)}
-            />
-          <% end %>
-          <.add_question_button phx_target={self()} wide />
-        </div>
+              <.add_question_button />
+            </div>
+          </div>
+        <% end %>
       </div>
     </Layouts.app>
     """
@@ -184,7 +187,7 @@ defmodule SlidexWeb.PollLive.Questions do
   def handle_info({:option_created, new_option, temp_id: temp_id}, socket) do
     questions =
       Enum.map(socket.assigns.questions, fn question ->
-        if question.id == new_option.question_id or
+        if Map.get(question, :id) == new_option.question_id or
              Map.get(question, :temp_id) == Map.get(new_option, :question_id) do
           new_options =
             question.options
@@ -272,13 +275,18 @@ defmodule SlidexWeb.PollLive.Questions do
   end
 
   defp matches_question?(q, question) do
-    (q.id && q.id == Map.get(question, :id)) or
+    Map.get(q, :id) == Map.get(question, :id) or
       (Map.get(q, :temp_id) && Map.get(q, :temp_id) == Map.get(question, :temp_id))
   end
 
+  attr :wide, :boolean, default: false
+
   def add_question_button(assigns) do
     ~H"""
-    <.button phx-click="add_question" variant="primary">
+    <.button
+      phx-click="add_question"
+      class={["btn btn-primary", if(@wide, do: "btn-block")]}
+    >
       <.icon name="hero-plus" /> Add Question
     </.button>
     """

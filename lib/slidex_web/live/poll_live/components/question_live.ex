@@ -35,148 +35,176 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="card bg-base border border-base-200 p-3 shadow">
+    <div class="card bg-base-100 border border-base-200 shadow-sm">
       <%= if !@editing do %>
-        <div class="w-full flex flex-row justify-between items-start gap-x-1">
-          <div class="flex flex-row items-start justify-start gap-x-2">
-            <div class="badge badge-md badge-neutral badge-soft me-1">{@idx + 1}</div>
-            <div class="flex flex-row gap-1">
-              <.button
-                type="button"
-                phx-click="reorder"
-                phx-value-direction="higher"
-                phx-target={@myself}
-                class="btn btn-neutral btn-soft btn-xs"
-                disabled={@idx == 0}
-              >
-                <.icon name="hero-chevron-up" />
-              </.button>
+        <!-- VIEW MODE -->
+        <div class="card-body p-5">
+          <!-- Header -->
+          <div class="flex items-center justify-between">
+            <!-- Left: Number + Reorder -->
+            <div class="flex items-center gap-3">
+              <div class="badge badge-neutral badge-soft badge-md">
+                {@idx + 1}
+              </div>
 
-              <.button
-                type="button"
-                phx-click="reorder"
-                phx-value-direction="lower"
-                phx-target={@myself}
-                class="btn btn-neutral btn-soft btn-xs"
-                disabled={@idx == @count - 1}
-              >
-                <.icon name="hero-chevron-down" />
-              </.button>
-            </div>
-          </div>
+              <div class="flex items-center gap-0.5">
+                <.button
+                  type="button"
+                  phx-click="reorder"
+                  phx-value-direction="higher"
+                  phx-target={@myself}
+                  class="btn btn-ghost btn-xs"
+                  disabled={@idx == 0}
+                >
+                  <.icon name="hero-chevron-up" class="size-4" />
+                </.button>
 
-          <div class="flex flex-row justify-end items-center gap-x-1">
-            <.button
-              type="button"
-              phx-click="edit"
-              phx-target={@myself}
-              class="btn btn-primary btn-soft btn-sm"
-            >
-              <.icon name="hero-pencil-square" /> Edit
-            </.button>
-            <.button
-              type="button"
-              phx-click="delete"
-              class="btn btn-soft btn-sm btn-error"
-              phx-target={@myself}
-            >
-              <.icon name="hero-trash" /> Delete
-            </.button>
-          </div>
-        </div>
-
-        <div class="divider divider-y my-1 divider-base-200" />
-
-        <div class="card rounded-sm w-full font-semibold px-1 py-2 leading-tight">
-          {@body}
-        </div>
-
-        <div class="mt-3">
-          <%= if @options != [] do %>
-            <div class="space-y-2">
-              <%= for {option, idx} <- Enum.with_index(@options) do %>
-                <.live_component
-                  module={OptionLive}
-                  id={"option-#{option_id(option)}"}
-                  option={option}
-                  current_scope={@current_scope}
-                  question={@question}
-                  idx={idx}
-                  count={length(@options)}
-                />
-              <% end %>
-              <div class="mt-3">
-                <.add_option_button phx_target={@myself} wide />
+                <.button
+                  type="button"
+                  phx-click="reorder"
+                  phx-value-direction="lower"
+                  phx-target={@myself}
+                  class="btn btn-ghost btn-xs"
+                  disabled={@idx == @count - 1}
+                >
+                  <.icon name="hero-chevron-down" class="size-4" />
+                </.button>
               </div>
             </div>
-          <% else %>
-            <div class="card w-full bg-base-100 shadow border border-dashed border-base-300">
-              <div class="card-body items-center py-4">
-                <.icon name="hero-face-frown" class="size-8 text-neutral" />
-                <div class="text-sm">No options yet</div>
+            
+    <!-- Right: Edit / Delete -->
+            <div class="flex items-center gap-2">
+              <.button
+                type="button"
+                phx-click="edit"
+                phx-target={@myself}
+                class="btn btn-primary btn-soft btn-sm"
+              >
+                <.icon name="hero-pencil-square" class="size-4" /> Edit
+              </.button>
+
+              <.button
+                type="button"
+                phx-click="delete"
+                phx-target={@myself}
+                class="btn btn-soft btn-sm btn-error"
+              >
+                <.icon name="hero-trash" class="size-4" /> Delete
+              </.button>
+            </div>
+          </div>
+          
+    <!-- Question Body -->
+          <div class="mt-3">
+            <div class="text-[15px] leading-snug font-medium text-base-content">
+              {@body}
+            </div>
+          </div>
+          
+    <!-- Options -->
+          <div class="mt-5">
+            <%= if @options != [] do %>
+              <div class="space-y-1.5">
+                <%= for {option, idx} <- Enum.with_index(@options) do %>
+                  <.live_component
+                    module={OptionLive}
+                    id={"option-#{option_id(option)}"}
+                    option={option}
+                    current_scope={@current_scope}
+                    question={@question}
+                    idx={idx}
+                    count={length(@options)}
+                  />
+                <% end %>
+              </div>
+
+              <div class="mt-3 justify-self-end">
                 <.add_option_button phx_target={@myself} />
               </div>
-            </div>
-          <% end %>
+            <% else %>
+              <!-- Empty State -->
+              <div class="rounded border border-dashed border-base-300 bg-base-200/50 px-4 py-5">
+                <div class="flex flex-col items-center text-center gap-y-3">
+                  <div class="flex flex-row items-center justify-center gap-x-2">
+                    <.icon
+                      name="hero-chat-bubble-left-right"
+                      class="size-8 text-base-content/50"
+                    />
+                    <p class="text-sm font-semibold text-base-content">No options added yet!</p>
+                  </div>
+
+                  <.add_option_button phx_target={@myself} />
+                </div>
+              </div>
+            <% end %>
+          </div>
         </div>
       <% end %>
 
       <%= if @editing do %>
-        <.form
-          for={to_form(%{"body" => @body})}
-          id={"form-#{@id}"}
-          phx-change="search"
-          phx-target={@myself}
-        >
-          <div class="w-full flex flex-row justify-between items-center">
-            <.button
-              type="button"
-              phx-click={if String.trim(@body) == "", do: "delete", else: "cancel_edit"}
-              phx-target={@myself}
-              class="btn btn-soft btn-sm"
-            >
-              <.icon name="hero-x-mark" /> <span class="hidden md:block">Cancel</span>
-            </.button>
-            <.button
-              type="button"
-              phx-click="save"
-              phx-target={@myself}
-              disabled={String.trim(@body || "") == ""}
-              class="btn btn-success btn-sm"
-            >
-              <.icon name="hero-check" />
-              <span class="hidden md:block">{if @is_temporary, do: "Save", else: "Update"}</span>
-            </.button>
-          </div>
+        <!-- EDIT MODE -->
+        <div class="card-body p-5">
+          <.form
+            for={to_form(%{"body" => @body})}
+            id={"form-#{@id}"}
+            phx-change="search"
+            phx-target={@myself}
+          >
+            <!-- Edit Header -->
+            <div class="flex items-center justify-between mb-4">
+              <div class="badge badge-sm badge-info badge-soft">Editing</div>
 
-          <div class="divider divider-y my-1 divider-base-200" />
+              <div class="flex items-center gap-2">
+                <.button
+                  type="button"
+                  phx-click={if String.trim(@body) == "", do: "delete", else: "cancel_edit"}
+                  phx-target={@myself}
+                  class="btn btn-ghost btn-sm"
+                >
+                  <.icon name="hero-x-mark" class="size-4" /> Cancel
+                </.button>
 
-          <div class="space-y-2">
-            <.input
-              type="textarea"
-              name="body"
-              value={@body}
-              phx-debounce="150"
-              autocomplete="off"
-              placeholder="Type your question..."
-            />
-
-            <%= if @show_results and length(@results) > 0 do %>
-              <div class="border border-base-300 bg-base-100 rounded mt-0 max-h-48 overflow-y-auto text-sm divide-y divide-base-200">
-                <%= for item <- @results do %>
-                  <div
-                    class="px-3 py-2 bg-base-100 hover:bg-base-200 cursor-pointer hover:text-primary"
-                    phx-click="select"
-                    phx-value-body={item}
-                    phx-target={@myself}
-                  >
-                    {item}
-                  </div>
-                <% end %>
+                <.button
+                  type="button"
+                  phx-click="save"
+                  phx-target={@myself}
+                  disabled={String.trim(@body || "") == ""}
+                  class="btn btn-success btn-sm"
+                >
+                  <.icon name="hero-check" class="size-4" />
+                  {if @is_temporary, do: "Create", else: "Save changes"}
+                </.button>
               </div>
-            <% end %>
-          </div>
-        </.form>
+            </div>
+            
+    <!-- Textarea + Search Results -->
+            <div class="space-y-3">
+              <.input
+                type="textarea"
+                name="body"
+                value={@body}
+                phx-debounce="150"
+                autocomplete="off"
+                placeholder="Type your question..."
+              />
+
+              <%= if @show_results and length(@results) > 0 do %>
+                <div class="rounded border border-base-300 bg-base-100 shadow-sm max-h-44 overflow-y-auto text-sm divide-y divide-base-200">
+                  <%= for item <- @results do %>
+                    <div
+                      class="px-4 py-2.5 hover:bg-base-200 cursor-pointer transition-colors"
+                      phx-click="select"
+                      phx-value-body={item}
+                      phx-target={@myself}
+                    >
+                      {item}
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          </.form>
+        </div>
       <% end %>
     </div>
     """
@@ -324,7 +352,7 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
     <.button
       phx-click="add_option"
       phx-target={@phx_target}
-      class={["btn btn-primary btn-soft btn-sm", if(@wide, do: "btn-block btn-soft")]}
+      class={["btn btn-outline btn-primary btn-sm", if(@wide, do: "btn-block btn-soft")]}
     >
       <.icon name="hero-plus" /> Add Option
     </.button>
