@@ -103,11 +103,14 @@ defmodule SlidexWeb.PollLive.Show do
     ~H"""
     <div
       id={@session.id}
-      class="flex justify-between gap-x-4 rounded-lg border border-base-300 bg-base-100 p-3 ps-4 group hover:bg-base-200 hover:ring-2 hover:ring-primary transition-all items-start"
+      class="flex justify-between gap-x-4 rounded-lg border border-base-300 bg-base-100 p-3 ps-4 group  transition-all items-start"
     >
       <div class="min-w-0 flex-1">
         <div class="font-medium truncate">{@session.title}</div>
-        <div class="text-xs text-base-content/60">
+        <div :if={@session.description} class="text-xs text-base-content/60">
+          {@session.description}
+        </div>
+        <div class="text-xs text-base-content/60 mt-1">
           {String.capitalize(to_string(@session.state))}
         </div>
         <div
