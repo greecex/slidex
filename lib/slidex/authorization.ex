@@ -19,8 +19,8 @@ defmodule Slidex.Authorization do
   end
 
   def authorize(%Accounts.Scope{} = scope, %Voting.Session{} = voting_session) do
-    poll = Repo.preload(voting_session, :poll)
-    authorize(scope, poll)
+    voting_session = Repo.preload(voting_session, :poll)
+    authorize(scope, voting_session.poll)
   end
 
   defp ok_or_forbidden(true), do: :ok
