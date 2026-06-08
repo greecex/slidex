@@ -123,19 +123,7 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
               </div>
             <% else %>
               <!-- Empty State -->
-              <div class="rounded border border-dashed border-base-300 bg-base-200/50 px-4 py-5">
-                <div class="flex flex-col items-center text-center gap-y-3">
-                  <div class="flex flex-row items-center justify-center gap-x-2">
-                    <.icon
-                      name="hero-chat-bubble-left-right"
-                      class="size-8 text-base-content/50"
-                    />
-                    <p class="text-sm font-semibold text-base-content">No options added yet!</p>
-                  </div>
-
-                  <.add_option_button phx_target={@myself} />
-                </div>
-              </div>
+              <.no_options_yet phx_target={@myself} />
             <% end %>
           </div>
         </div>
@@ -342,6 +330,26 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
     |> assign(:editing, false)
     |> assign(:results, [])
     |> assign(:show_results, false)
+  end
+
+  attr :phx_target, :any, required: true
+
+  def no_options_yet(assigns) do
+    ~H"""
+    <div class="rounded border border-dashed border-base-300 bg-base-200/50 px-4 py-5">
+      <div class="flex flex-col items-center text-center gap-y-3">
+        <div class="flex flex-row items-center justify-center gap-x-2">
+          <.icon
+            name="hero-chat-bubble-left-right"
+            class="size-8 text-base-content/50"
+          />
+          <p class="text-sm font-semibold text-base-content">No options added yet!</p>
+        </div>
+
+        <.add_option_button phx_target={@phx_target} />
+      </div>
+    </div>
+    """
   end
 
   attr :phx_target, :any, required: true

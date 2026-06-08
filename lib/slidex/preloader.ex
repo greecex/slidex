@@ -4,7 +4,7 @@ defmodule Slidex.Preloader do
   """
   require Logger
   import Ecto.Query
-  alias Slidex.{Repo, Campaigns, Polling}
+  alias Slidex.{Repo, Campaigns, Polling, Voting}
 
   def with_preloads(record_or_list_or_tuple, opts \\ [])
 
@@ -64,9 +64,12 @@ defmodule Slidex.Preloader do
 
   defp preloads(%Campaigns.Poll{}) do
     [
-      questions: [
-        options: sorted_options_query()
-      ]
+      [
+        questions: [
+          options: sorted_options_query()
+        ]
+      ],
+      [:sessions]
     ]
   end
 
@@ -78,6 +81,16 @@ defmodule Slidex.Preloader do
   end
 
   defp preloads(%Polling.Option{}), do: [question: :poll]
+
+  defp preloads(%Voting.Session{}),
+    do: [
+      :poll,
+      [
+        current_question: [
+          options: sorted_options_query()
+        ]
+      ]
+    ]
 
   defp sorted_options_query,
     do: from(o in Polling.Option, order_by: [asc: o.position, asc: o.inserted_at])

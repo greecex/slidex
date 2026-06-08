@@ -5,7 +5,8 @@ defmodule Slidex.Polling do
 
   import Ecto.Query
   import Slidex.Preloader
-  alias Slidex.{Repo, Authorization}
+  import Slidex.Authorization
+  alias Slidex.Repo
 
   alias Slidex.Accounts.Scope
   alias Slidex.Campaigns.Poll
@@ -14,7 +15,7 @@ defmodule Slidex.Polling do
   # Questions
 
   def list_questions(%Scope{} = scope, %Poll{} = poll) do
-    :ok = Authorization.authorize(scope, poll)
+    :ok = authorize(scope, poll)
 
     Question
     |> where([q], q.poll_id == ^poll.id)
@@ -30,7 +31,7 @@ defmodule Slidex.Polling do
   end
 
   def create_question(%Scope{} = scope, %Poll{} = poll, attrs) do
-    :ok = Authorization.authorize(scope, poll)
+    :ok = authorize(scope, poll)
 
     %Question{poll_id: poll.id}
     |> Question.changeset(attrs)
@@ -40,7 +41,7 @@ defmodule Slidex.Polling do
 
   # TODO: Add check to prevent editing if the question already has responses
   def update_question(%Scope{} = scope, %Question{} = question, attrs) do
-    :ok = Authorization.authorize(scope, question)
+    :ok = authorize(scope, question)
 
     question
     |> Question.changeset(attrs)
@@ -50,7 +51,7 @@ defmodule Slidex.Polling do
 
   # TODO: Add check to prevent deletion if the question already has responses
   def delete_question(%Scope{} = scope, %Question{} = question) do
-    :ok = Authorization.authorize(scope, question)
+    :ok = authorize(scope, question)
 
     Repo.delete(question)
   end
@@ -58,7 +59,7 @@ defmodule Slidex.Polling do
   # Options
 
   def list_options(%Scope{} = scope, %Question{} = question) do
-    :ok = Authorization.authorize(scope, question)
+    :ok = authorize(scope, question)
 
     Option
     |> where([o], o.question_id == ^question.id)
@@ -75,7 +76,7 @@ defmodule Slidex.Polling do
   end
 
   def create_option(%Scope{} = scope, %Question{} = question, attrs) do
-    :ok = Authorization.authorize(scope, question)
+    :ok = authorize(scope, question)
 
     %Option{question_id: question.id}
     |> Option.changeset(attrs)
@@ -85,7 +86,7 @@ defmodule Slidex.Polling do
 
   # TODO: Add check to prevent editing if the question already has responses
   def update_option(%Scope{} = scope, %Option{} = option, attrs) do
-    :ok = Authorization.authorize(scope, option)
+    :ok = authorize(scope, option)
 
     option
     |> Option.changeset(attrs)
@@ -95,7 +96,7 @@ defmodule Slidex.Polling do
 
   # TODO: Add check to prevent deletion if the question already has responses
   def delete_option(%Scope{} = scope, %Option{} = option) do
-    :ok = Authorization.authorize(scope, option)
+    :ok = authorize(scope, option)
 
     Repo.delete(option)
   end

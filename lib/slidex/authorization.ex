@@ -1,21 +1,26 @@
 defmodule Slidex.Authorization do
   @moduledoc """
-  User-scoped authorization for Poll, Question, Option
+  User-scoped authorization for Poll, Question, Option, Session
   """
 
-  alias Slidex.{Accounts, Repo, Campaigns, Polling}
+  alias Slidex.{Accounts, Repo, Campaigns, Polling, Voting}
 
   def authorize(%Accounts.Scope{} = scope, %Campaigns.Poll{} = poll),
     do: ok_or_forbidden(poll.user_id == scope.user.id)
 
   def authorize(%Accounts.Scope{} = scope, %Polling.Question{} = question) do
     question = Repo.preload(question, :poll)
-    ok_or_forbidden(question.poll.user_id == scope.user.id)
+    authorize(scope, question.poll)
   end
 
   def authorize(%Accounts.Scope{} = scope, %Polling.Option{} = option) do
     option = Repo.preload(option, question: :poll)
-    ok_or_forbidden(option.question.poll.user_id == scope.user.id)
+    authorize(scope, option.question.poll)
+  end
+
+  def authorize(%Accounts.Scope{} = scope, %Voting.Session{} = voting_session) do
+    poll = Repo.preload(voting_session, :poll)
+    authorize(scope, poll)
   end
 
   defp ok_or_forbidden(true), do: :ok

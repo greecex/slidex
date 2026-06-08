@@ -7,6 +7,8 @@ alias Slidex.Campaigns
 alias Slidex.Campaigns.Poll
 alias Slidex.Polling
 alias Slidex.Polling.{Question, Option}
+alias Slidex.Voting
+alias Slidex.Voting.{Session}
 
 username = "demo"
 

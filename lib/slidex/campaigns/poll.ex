@@ -3,6 +3,7 @@ defmodule Slidex.Campaigns.Poll do
   import Ecto.Changeset
   alias Slidex.Accounts.User
   alias Slidex.Polling.Question
+  alias Slidex.Voting.Session
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -17,6 +18,7 @@ defmodule Slidex.Campaigns.Poll do
 
     belongs_to :user, User
     has_many :questions, Question, on_delete: :delete_all
+    has_many :sessions, Session, on_delete: :delete_all
 
     timestamps(type: :utc_datetime_usec)
   end

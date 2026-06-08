@@ -50,19 +50,7 @@ defmodule SlidexWeb.PollLive.Questions do
             <.add_question_button wide />
           </div>
         <% else %>
-          <div class="rounded border border-dashed border-base-300 bg-base-200/50 px-4 py-5">
-            <div class="flex flex-col items-center text-center gap-y-3">
-              <div class="flex flex-row items-center justify-center gap-x-2">
-                <.icon
-                  name="hero-question-mark-circle"
-                  class="size-8 text-base-content/50"
-                />
-                <p class="text-sm font-semibold text-base-content">No questions added yet!</p>
-              </div>
-
-              <.add_question_button />
-            </div>
-          </div>
+          <.no_questions_yet />
         <% end %>
       </div>
     </Layouts.app>
@@ -277,6 +265,24 @@ defmodule SlidexWeb.PollLive.Questions do
   defp matches_question?(q, question) do
     Map.get(q, :id) == Map.get(question, :id) or
       (Map.get(q, :temp_id) && Map.get(q, :temp_id) == Map.get(question, :temp_id))
+  end
+
+  def no_questions_yet(assigns) do
+    ~H"""
+    <div class="rounded border border-dashed border-base-300 bg-base-200/50 px-4 py-5">
+      <div class="flex flex-col items-center text-center gap-y-3">
+        <div class="flex flex-row items-center justify-center gap-x-2">
+          <.icon
+            name="hero-question-mark-circle"
+            class="size-8 text-base-content/50"
+          />
+          <p class="text-sm font-semibold text-base-content">No questions added yet!</p>
+        </div>
+
+        <.add_question_button />
+      </div>
+    </div>
+    """
   end
 
   attr :wide, :boolean, default: false
