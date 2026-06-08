@@ -261,7 +261,9 @@ defmodule SlidexWeb.PollLive.Questions do
   end
 
   def handle_info({:questions_reordered, poll}, socket) do
-    refreshed_poll = Preloader.with_preloads(poll)
+    refreshed_poll =
+      socket.assigns.current_scope
+      |> Campaigns.get_poll!(poll.id)
 
     {:noreply,
      socket
