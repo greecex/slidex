@@ -99,6 +99,42 @@ defmodule Slidex.Campaigns do
     end
   end
 
+  def duplicate_poll(%Scope{} = scope, %Poll{} = poll) do
+    :ok = Authorization.authorize(scope, poll)
+
+    attrs =
+      poll
+      |> Map.take([:title, :is_public, :access_code, :expires_at])
+      |> Map.put(:title, generate_duplicate_title(scope, poll.title))
+
+    with {:ok, poll = %Poll{}} <- create_poll(scope, attrs) do
+      broadcast_poll(scope, {:duplicated, poll})
+      {:ok, poll}
+    end
+  end
+
+  defp generate_duplicate_title(%Scope{} = scope, title) do
+    common_title = title_without_copy_suffix(title)
+
+    copy_suffix =
+      Poll
+      |> where([p], p.user_id == ^scope.user.id)
+      |> where([p], like(p.title, ^"%#{common_title}%"))
+      |> Repo.aggregate(:count)
+      |> case do
+        1 -> ""
+        idx -> " #{idx}"
+      end
+
+    "#{common_title} (copy#{copy_suffix})"
+  end
+
+  defp title_without_copy_suffix(string) when is_binary(string) do
+    ~r/\s+\(copy( \d+)?\)/
+    |> Regex.split(string, trim: true)
+    |> List.first()
+  end
+
   @doc """
   Updates a poll.
 

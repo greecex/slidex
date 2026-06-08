@@ -177,6 +177,16 @@ defmodule SlidexWeb.PollLive.Index do
                 </li>
               <% end %>
 
+              <li>
+                <.button
+                  phx-click={JS.push("duplicate", value: %{id: poll.id})}
+                  data-confirm="Are you sure?"
+                  class="btn btn-soft btn-neutral justify-start"
+                >
+                  <.icon name="hero-document-duplicate" /> Duplicate
+                </.button>
+              </li>
+
               <li :if={!poll.archived_at}>
                 <.button
                   phx-click={JS.push("archive", value: %{id: poll.id}) |> hide("##{id}")}
@@ -274,14 +284,32 @@ defmodule SlidexWeb.PollLive.Index do
     poll = Campaigns.get_poll!(scope, id)
     {:ok, _} = Campaigns.reopen_poll(scope, poll)
 
-    current_filter = socket.assigns.archived
-    polls = list_polls(scope, archived: current_filter)
-    {:noreply, stream(socket, :polls, polls, reset: true)}
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("duplicate", %{"id" => id}, socket) do
+    scope = socket.assigns.current_scope
+    poll = Campaigns.get_poll!(scope, id)
+    {:ok, _} = Campaigns.duplicate_poll(scope, poll)
+
+    {:noreply,
+     socket
+     |> put_flash(:info, "Poll duplicated")}
   end
 
   @impl true
   def handle_info({type, %Poll{}}, socket)
-      when type in [:created, :updated, :deleted, :archived, :unarchived, :closed, :reopened] do
+      when type in [
+             :created,
+             :updated,
+             :deleted,
+             :archived,
+             :unarchived,
+             :closed,
+             :reopened,
+             :duplicated
+           ] do
     current_filter = socket.assigns.archived
     polls = list_polls(socket.assigns.current_scope, archived: current_filter)
 
@@ -290,6 +318,7 @@ defmodule SlidexWeb.PollLive.Index do
         {:archived, true, false} -> :only
         {:unarchived, true, :only} -> false
         {:deleted, true, filter} -> filter
+        {:duplicated, true, filter} -> filter
         _ -> current_filter
       end
 
