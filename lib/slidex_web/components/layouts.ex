@@ -39,7 +39,9 @@ defmodule SlidexWeb.Layouts do
       <div class="flex-1">
         <a href="/" class="flex-1 flex w-fit items-center gap-2">
           <SlidexWeb.Icons.logo />
-          <span class="text-md font-bold text-primary">{Slidex.application_name()}</span>
+          <span class="text-2xl font-extrabold tracking-tight text-primary">
+            {Slidex.application_name()}
+          </span>
           <span class="badge badge-sm badge-soft badge-secondary font-semibold">
             v{Slidex.application_version()}
           </span>
