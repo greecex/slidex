@@ -68,6 +68,53 @@ defmodule SlidexWeb.Layouts do
           <li>
             <.theme_toggle />
           </li>
+          <li>
+            <%= if @current_scope do %>
+              <div class="dropdown dropdown-end">
+                <div tabindex="0" role="button" class="btn btn-ghost m-1 p-0 hover:none">
+                  {Phoenix.HTML.raw(
+                    IdenticonSvg.generate(
+                      @current_scope.user.username,
+                      7,
+                      :split2,
+                      1.0,
+                      2,
+                      squircle_curvature: 0.8
+                    )
+                  )}
+                </div>
+                <ul
+                  tabindex="-1"
+                  class="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm"
+                >
+                  <li class="pointer-events-none cursor-none">
+                    <div class="text-start flex flex-col items-start gap-0">
+                      <div class="text-md font-semibold text-primary text-start">
+                        {@current_scope.user.username}
+                      </div>
+                      <div class="text-xs text-start">{@current_scope.user.email}</div>
+                    </div>
+                  </li>
+                  <div class="divider divider-y divider-neutral/50 py-0 px-2 my-0" />
+
+                  <li>
+                    <.link navigate={~p"/users/settings"}>
+                      <.icon name="hero-cog-8-tooth" class="size-5" />Settings
+                    </.link>
+                  </li>
+                  <li>
+                    <.link
+                      href={~p"/users/log-out"}
+                      method="delete"
+                      class="hover:bg-red-200 hover:text-red-700"
+                    >
+                      <.icon name="hero-arrow-left-start-on-rectangle" class="size-5" />Log out
+                    </.link>
+                  </li>
+                </ul>
+              </div>
+            <% end %>
+          </li>
         </ul>
       </div>
     </header>

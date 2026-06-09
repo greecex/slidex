@@ -69,7 +69,10 @@ defmodule Slidex.MixProject do
       {:bandit, "~> 1.5"},
 
       # Database
-      {:ecto_ulid_next, "~> 1.0"}
+      {:ecto_ulid_next, "~> 1.0"},
+
+      # Images/graphics
+      {:identicon_svg, "~> 0.9.5"}
     ]
   end
 
