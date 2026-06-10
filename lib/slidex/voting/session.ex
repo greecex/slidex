@@ -32,8 +32,6 @@ defmodule Slidex.Voting.Session do
     permitted = __MODULE__.__schema__(:fields) -- [:inserted_at, :updated_at]
     required = [:title]
 
-    IO.inspect(attrs)
-
     session
     |> cast(attrs, permitted)
     |> validate_required(required)
