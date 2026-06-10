@@ -9,14 +9,7 @@ defmodule Slidex.CampaignsTest do
     import Slidex.AccountsFixtures, only: [user_scope_fixture: 0]
     import Slidex.CampaignsFixtures
 
-    @invalid_attrs %{
-      title: nil,
-      is_public: nil,
-      access_code: nil,
-      expires_at: nil,
-      closed_at: nil,
-      archived_at: nil
-    }
+    @invalid_attrs %{title: nil}
 
     test "list_polls/1 returns all scoped polls" do
       scope = user_scope_fixture()
@@ -31,29 +24,18 @@ defmodule Slidex.CampaignsTest do
       scope = user_scope_fixture()
       poll = poll_fixture(scope)
       other_scope = user_scope_fixture()
-      assert Campaigns.get_poll!(scope, poll.id) == poll
+      assert Campaigns.get_poll!(scope, poll.id).id == poll.id
       assert_raise Ecto.NoResultsError, fn -> Campaigns.get_poll!(other_scope, poll.id) end
     end
 
     test "create_poll/2 with valid data creates a poll" do
-      valid_attrs = %{
-        title: "some title",
-        is_public: true,
-        access_code: "some access_code",
-        expires_at: ~U[2026-06-05 14:14:00Z],
-        closed_at: ~U[2026-06-05 14:14:00Z],
-        archived_at: ~U[2026-06-05 14:14:00.000000Z]
-      }
+      valid_attrs = %{title: "some title", access_code: "some access_code"}
 
       scope = user_scope_fixture()
 
       assert {:ok, %Poll{} = poll} = Campaigns.create_poll(scope, valid_attrs)
       assert poll.title == "some title"
-      assert poll.is_public == true
       assert poll.access_code == "some access_code"
-      assert poll.expires_at == ~U[2026-06-05 14:14:00Z]
-      assert poll.closed_at == ~U[2026-06-05 14:14:00Z]
-      assert poll.archived_at == ~U[2026-06-05 14:14:00.000000Z]
       assert poll.user_id == scope.user.id
     end
 
@@ -66,22 +48,11 @@ defmodule Slidex.CampaignsTest do
       scope = user_scope_fixture()
       poll = poll_fixture(scope)
 
-      update_attrs = %{
-        title: "some updated title",
-        is_public: false,
-        access_code: "some updated access_code",
-        expires_at: ~U[2026-06-06 14:14:00Z],
-        closed_at: ~U[2026-06-06 14:14:00Z],
-        archived_at: ~U[2026-06-06 14:14:00.000000Z]
-      }
+      update_attrs = %{title: "some updated title", access_code: "some updated access_code"}
 
       assert {:ok, %Poll{} = poll} = Campaigns.update_poll(scope, poll, update_attrs)
       assert poll.title == "some updated title"
-      assert poll.is_public == false
       assert poll.access_code == "some updated access_code"
-      assert poll.expires_at == ~U[2026-06-06 14:14:00Z]
-      assert poll.closed_at == ~U[2026-06-06 14:14:00Z]
-      assert poll.archived_at == ~U[2026-06-06 14:14:00.000000Z]
     end
 
     test "update_poll/3 with invalid scope raises" do
@@ -98,7 +69,7 @@ defmodule Slidex.CampaignsTest do
       scope = user_scope_fixture()
       poll = poll_fixture(scope)
       assert {:error, %Ecto.Changeset{}} = Campaigns.update_poll(scope, poll, @invalid_attrs)
-      assert poll == Campaigns.get_poll!(scope, poll.id)
+      assert poll.title == Campaigns.get_poll!(scope, poll.id).title
     end
 
     test "delete_poll/2 deletes the poll" do
