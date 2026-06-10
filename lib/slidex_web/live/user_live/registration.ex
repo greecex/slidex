@@ -2,7 +2,6 @@ defmodule SlidexWeb.UserLive.Registration do
   use SlidexWeb, :live_view
 
   alias Slidex.Accounts
-  alias Slidex.Accounts.User
 
   @impl true
   def render(assigns) do
@@ -34,6 +33,15 @@ defmodule SlidexWeb.UserLive.Registration do
             phx-mounted={JS.focus()}
           />
 
+          <.input
+            field={@form[:username]}
+            type="text"
+            label="Username"
+            autocomplete="off"
+            spellcheck="false"
+            required
+          />
+
           <.button phx-disable-with="Creating account..." class="btn btn-primary w-full">
             Create an account
           </.button>
@@ -50,7 +58,7 @@ defmodule SlidexWeb.UserLive.Registration do
   end
 
   def mount(_params, _session, socket) do
-    changeset = Accounts.change_user_email(%User{}, %{}, validate_unique: false)
+    changeset = Accounts.change_user_registration(%{}, validate_unique: false)
 
     {:ok, assign_form(socket, changeset), temporary_assigns: [form: nil]}
   end
@@ -79,7 +87,7 @@ defmodule SlidexWeb.UserLive.Registration do
   end
 
   def handle_event("validate", %{"user" => user_params}, socket) do
-    changeset = Accounts.change_user_email(%User{}, user_params, validate_unique: false)
+    changeset = Accounts.change_user_registration(user_params, validate_unique: false)
     {:noreply, assign_form(socket, Map.put(changeset, :action, :validate))}
   end
 

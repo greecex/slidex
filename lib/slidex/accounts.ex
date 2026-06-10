@@ -98,8 +98,23 @@ defmodule Slidex.Accounts do
   """
   def register_user(attrs) do
     attrs
-    |> User.registration_changeset()
+    |> User.registration_changeset(validate_unique: true)
     |> Repo.insert()
+  end
+
+  @doc """
+  Returns an `%Ecto.Changeset{}` for tracking user registration changes.
+
+  See `Slidex.Accounts.User.registration_changeset/2` for a list of supported options.
+
+  ## Examples
+
+      iex> change_user_registration(%{email: "user@example.com", username: "user"})
+      %Ecto.Changeset{}
+
+  """
+  def change_user_registration(attrs \\ %{}, opts \\ []) do
+    User.registration_changeset(attrs, opts)
   end
 
   ## Settings
