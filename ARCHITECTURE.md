@@ -15,7 +15,7 @@ Slidex is a **Phoenix 1.8 + LiveView** monolith that demonstrates a complete int
 - Clear context separation (`Campaigns`, `Polling`, `Voting`).
 - Self-contained components with **colocated hooks**.
 - Optimistic UI via temporary records.
-- Native browser features (`<dialog>`, ULIDs, `position` ordering).
+- Native browser features (`<dialog>`), UUIDv4 (`:binary_id`) keys, ULID session slugs, and integer `position` ordering.
 - Centralized authorization and preloading.
 
 **Deployment**: Standard Phoenix release.
@@ -44,7 +44,7 @@ Slidex App
 
 ## 3. Database Schema (Current)
 
-All tables use `@primary_key {:id, :binary_id, autogenerate: true}` and `@foreign_key_type :binary_id`.
+All tables use `@primary_key {:id, :binary_id, autogenerate: true}` and `@foreign_key_type :binary_id`, i.e. **UUIDv4** keys (Ecto's default `binary_id` autogeneration). The only ULID in the system is the session `slug`, generated with `Ecto.ULID` (see `Voting.Session.put_slug/1`).
 
 ### Key Relationships
 
@@ -190,7 +190,8 @@ SessionLive.Form
 
 | Area                        | Implementation                              | Notes |
 |-----------------------------|---------------------------------------------|-------|
-| Primary keys                | ULID (`:binary_id`)                         | Sortable + secure |
+| Primary keys                | UUIDv4 (`:binary_id`)                       | Random, URL-safe, secure |
+| Session slugs               | ULID (`Ecto.ULID`)                          | Sortable, URL-safe public id |
 | Ordering                    | Integer `position` + `Reorder` module       | Predictable, easy to normalize |
 | Modals                      | Native `<dialog>` + daisyUI + colocated hook | Accessible, self-contained |
 | Search                      | ILIKE + exclusion + distinct                | Simple & sufficient for demo |

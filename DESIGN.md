@@ -18,13 +18,13 @@
 - **Optimistic UI** with temporary records (`temp_id`) for questions/options before DB persistence.
 - **Self-contained components** (QuestionLive, OptionLive, SessionModal uses shared modal).
 - **Colocated hooks** for modals and timers (no global pollution in app.js).
-- **Native primitives**: `<dialog>` + daisyUI, ULIDs, integer `position` for ordering.
+- **Native primitives**: `<dialog>` + daisyUI, UUIDv4 (`:binary_id`) keys, ULID session slugs, integer `position` for ordering.
 
 ---
 
 ## 2. Domain Model
 
-### Core Entities (ULID primary keys)
+### Core Entities (UUIDv4 / `binary_id` primary keys)
 
 | Entity     | Context   | Belongs To       | Has Many     | Key Fields                                                                 | Notes |
 |------------|-----------|------------------|--------------|----------------------------------------------------------------------------|-------|
@@ -109,7 +109,8 @@
 
 | Decision                          | Rationale |
 |-----------------------------------|-----------|
-| **ULID primary keys**             | Sortable, URL-safe, secure. |
+| **UUIDv4 primary keys (`:binary_id`)** | Random, URL-safe, secure (Ecto's `binary_id` default). |
+| **ULID session slugs (`Ecto.ULID`)** | Sortable, URL-safe public identifiers for sessions. |
 | **Explicit `position`**           | Simple manual ordering + easy normalization. |
 | **Temporary records (`temp_id`)** | Optimistic UI for questions/options. |
 | **Separate `Polling` + `Voting` contexts** | Reusability + clean boundaries. |
