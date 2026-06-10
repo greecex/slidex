@@ -111,7 +111,7 @@ defmodule SlidexWeb.PollLive.Show do
           {@session.description}
         </div>
         <div class="text-xs text-base-content/60 mt-1">
-          {String.capitalize(to_string(@session.state))}
+          {status_label(@session)}
         </div>
         <div
           :if={@session.closed_at}
@@ -207,6 +207,11 @@ defmodule SlidexWeb.PollLive.Show do
     </div>
     """
   end
+
+  # Closing a session sets closed_at but leaves the state enum untouched
+  # (a survey must keep its :survey state), so derive the label from closed_at.
+  defp status_label(%{closed_at: %DateTime{}}), do: "Closed"
+  defp status_label(%{state: state}), do: String.capitalize(to_string(state))
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
