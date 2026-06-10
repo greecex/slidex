@@ -5,8 +5,9 @@ defmodule Slidex.Voting do
 
   alias Slidex.{Repo, Preloader}
   alias Slidex.Accounts.Scope
-  alias __MODULE__.Session
   alias Slidex.Campaigns.Poll
+  alias Slidex.Polling.{Question, Option}
+  alias __MODULE__.{Session, Participant, Vote, Tally}
 
   def subscribe_sessions(%Scope{} = scope) do
     key = scope.user.id
@@ -120,4 +121,62 @@ defmodule Slidex.Voting do
       error -> error
     end
   end
+
+  # Participants and votes are part of the public, guest-facing path, so these
+  # functions take a session and a participant rather than a %Scope{}.
+
+  def find_or_create_participant(%Session{} = session, token, attrs \\ %{})
+      when is_binary(token) do
+    case Repo.get_by(Participant, session_id: session.id, token: token) do
+      %Participant{} = participant ->
+        {:ok, participant}
+
+      nil ->
+        %Participant{session_id: session.id, token: token, user_id: Map.get(attrs, :user_id)}
+        |> Participant.changeset(attrs)
+        |> Repo.insert()
+    end
+  end
+
+  def cast_vote(
+        %Session{} = session,
+        %Participant{} = participant,
+        %Question{} = question,
+        %Option{} = option
+      ) do
+    with :ok <- ensure_votable(session),
+         :ok <- ensure_question_in_session(session, question),
+         :ok <- ensure_option_in_question(question, option) do
+      %Vote{
+        session_id: session.id,
+        question_id: question.id,
+        option_id: option.id,
+        participant_id: participant.id
+      }
+      |> Vote.changeset()
+      |> Repo.insert(
+        on_conflict: {:replace, [:option_id, :updated_at]},
+        conflict_target: [:session_id, :question_id, :participant_id],
+        returning: true
+      )
+    end
+  end
+
+  def tally(%Session{} = session, %Question{} = question) do
+    Vote
+    |> where([v], v.session_id == ^session.id and v.question_id == ^question.id)
+    |> Repo.all()
+    |> Tally.by_option()
+  end
+
+  defp ensure_votable(%Session{state: state}) when state in [:active, :survey], do: :ok
+  defp ensure_votable(%Session{}), do: {:error, :session_not_votable}
+
+  defp ensure_question_in_session(%Session{poll_id: poll_id}, %Question{poll_id: poll_id}),
+    do: :ok
+
+  defp ensure_question_in_session(_session, _question), do: {:error, :question_not_in_session}
+
+  defp ensure_option_in_question(%Question{id: id}, %Option{question_id: id}), do: :ok
+  defp ensure_option_in_question(_question, _option), do: {:error, :option_not_in_question}
 end
