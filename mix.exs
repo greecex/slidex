@@ -40,6 +40,7 @@ defmodule Slidex.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
+      {:tidewave, "~> 0.5", only: [:dev]},
       {:argon2_elixir, "~> 4.0"},
       {:phoenix, "~> 1.8.1"},
       {:phoenix_ecto, "~> 4.5"},
