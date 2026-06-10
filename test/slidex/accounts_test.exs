@@ -69,11 +69,13 @@ defmodule Slidex.AccountsTest do
 
     test "validates email uniqueness" do
       %{email: email} = user_fixture()
-      {:error, changeset} = Accounts.register_user(%{email: email})
+      {:error, changeset} = Accounts.register_user(valid_user_attributes(email: email))
       assert "has already been taken" in errors_on(changeset).email
 
       # Now try with the uppercased email too, to check that email case is ignored.
-      {:error, changeset} = Accounts.register_user(%{email: String.upcase(email)})
+      {:error, changeset} =
+        Accounts.register_user(valid_user_attributes(email: String.upcase(email)))
+
       assert "has already been taken" in errors_on(changeset).email
     end
 
@@ -170,7 +172,7 @@ defmodule Slidex.AccountsTest do
     end
 
     test "does not update email if token expired", %{user: user, token: token} do
-      {1, nil} = Repo.update_all(UserToken, set: [inserted_at: ~N[2020-01-01 00:00:00]])
+      Repo.update_all(UserToken, set: [inserted_at: ~N[2020-01-01 00:00:00]])
 
       assert Accounts.update_user_email(user, token) ==
                {:error, :transaction_aborted}
@@ -302,7 +304,7 @@ defmodule Slidex.AccountsTest do
 
     test "does not return user for expired token", %{token: token} do
       dt = ~N[2020-01-01 00:00:00]
-      {1, nil} = Repo.update_all(UserToken, set: [inserted_at: dt, authenticated_at: dt])
+      Repo.update_all(UserToken, set: [inserted_at: dt, authenticated_at: dt])
       refute Accounts.get_user_by_session_token(token)
     end
   end
@@ -324,7 +326,7 @@ defmodule Slidex.AccountsTest do
     end
 
     test "does not return user for expired token", %{token: token} do
-      {1, nil} = Repo.update_all(UserToken, set: [inserted_at: ~N[2020-01-01 00:00:00]])
+      Repo.update_all(UserToken, set: [inserted_at: ~N[2020-01-01 00:00:00]])
       refute Accounts.get_user_by_magic_link_token(token)
     end
   end
@@ -352,7 +354,7 @@ defmodule Slidex.AccountsTest do
 
     test "raises when unconfirmed user has password set" do
       user = unconfirmed_user_fixture()
-      {1, nil} = Repo.update_all(User, set: [hashed_password: "hashed"])
+      Repo.update_all(User, set: [hashed_password: "hashed"])
       {encoded_token, _hashed_token} = generate_user_magic_link_token(user)
 
       assert_raise RuntimeError, ~r/magic link log in is not allowed/, fn ->

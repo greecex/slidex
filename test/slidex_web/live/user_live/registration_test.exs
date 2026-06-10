@@ -17,7 +17,7 @@ defmodule SlidexWeb.UserLive.RegistrationTest do
         conn
         |> log_in_user(user_fixture())
         |> live(~p"/users/register")
-        |> follow_redirect(conn, ~p"/")
+        |> follow_redirect(conn, ~p"/polls")
 
       assert {:ok, _conn} = result
     end
