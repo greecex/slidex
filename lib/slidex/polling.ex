@@ -33,7 +33,7 @@ defmodule Slidex.Polling do
   def create_question(%Scope{} = scope, %Poll{} = poll, attrs) do
     :ok = authorize(scope, poll)
 
-    %Question{poll_id: poll.id}
+    %Question{poll_id: poll.id, position: next_position(Question, :poll_id, poll.id)}
     |> Question.changeset(attrs)
     |> Repo.insert()
     |> with_preloads()
@@ -78,7 +78,7 @@ defmodule Slidex.Polling do
   def create_option(%Scope{} = scope, %Question{} = question, attrs) do
     :ok = authorize(scope, question)
 
-    %Option{question_id: question.id}
+    %Option{question_id: question.id, position: next_position(Option, :question_id, question.id)}
     |> Option.changeset(attrs)
     |> Repo.insert()
     |> with_preloads()
@@ -99,6 +99,19 @@ defmodule Slidex.Polling do
     :ok = authorize(scope, option)
 
     Repo.delete(option)
+  end
+
+  # Returns the next position (max + 1, or 0 when empty) for a new child.
+  # Set on the struct so it is not mass-assignable; an explicit position in
+  # attrs (e.g. from duplication) still overrides it via the changeset.
+  defp next_position(schema, parent_field, parent_id) do
+    schema
+    |> where([r], field(r, ^parent_field) == ^parent_id)
+    |> Repo.aggregate(:max, :position)
+    |> case do
+      nil -> 0
+      max -> max + 1
+    end
   end
 
   defdelegate reorder(scope, question_or_option, direction),
