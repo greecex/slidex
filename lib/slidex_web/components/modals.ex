@@ -24,10 +24,9 @@ defmodule SlidexWeb.Components.Modals do
         id={@id}
         phx-hook="Modal"
         phx-mounted={
-          @show &&
-            JS.ignore_attributes("open")
-            |> JS.dispatch("open-dialog", to: "##{@id}")
-            |> JS.focus_first(to: "##{@id}-container")
+          JS.ignore_attributes("open")
+          |> JS.dispatch("open-dialog", to: "##{@id}")
+          |> JS.focus_first(to: "##{@id}-container")
         }
         phx-remove={
           JS.dispatch("close-dialog", to: "##{@id}")

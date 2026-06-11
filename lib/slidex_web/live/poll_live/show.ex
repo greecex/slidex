@@ -322,13 +322,6 @@ defmodule SlidexWeb.PollLive.Show do
      |> assign(:poll, poll)}
   end
 
-  def handle_info({:duplicated, %Poll{} = poll}, socket) do
-    {:noreply,
-     socket
-     |> put_flash(:error, "The current poll was duplicated.")
-     |> assign(:poll, poll)}
-  end
-
   attr :poll, :map, required: true
   attr :disabled, :boolean, required: false, default: false
 
