@@ -21,6 +21,18 @@ defmodule Slidex.Voting do
     Phoenix.PubSub.broadcast(Slidex.PubSub, "user:#{key}:sessions", message)
   end
 
+  @doc """
+  Subscribes to the public room topic for a session, used by the presenter and
+  participants for live lifecycle, question, and results events.
+  """
+  def subscribe_session(%Session{slug: slug}) do
+    Phoenix.PubSub.subscribe(Slidex.PubSub, "session:#{slug}")
+  end
+
+  defp broadcast_to_session(%Session{slug: slug}, message) do
+    Phoenix.PubSub.broadcast(Slidex.PubSub, "session:#{slug}", message)
+  end
+
   def list_sessions(%Scope{} = scope) do
     scope
     |> query_sessions()
@@ -92,12 +104,12 @@ defmodule Slidex.Voting do
     :ok = authorize(scope, session)
 
     with %Session{closed_at: nil} <- session,
-         attrs = %{closed_at: DateTime.utc_now()},
          {:ok, closed} <-
            scope
-           |> change_session(session, attrs)
+           |> change_session(session, close_attrs(session))
            |> Repo.update() do
       broadcast_session(scope, {:closed, closed})
+      broadcast_to_session(closed, {:state_changed, closed.state})
       {:ok, closed}
     else
       %Session{closed_at: %DateTime{}} -> {:ok, session}
@@ -109,18 +121,62 @@ defmodule Slidex.Voting do
     :ok = authorize(scope, session)
 
     with %Session{closed_at: %DateTime{}} <- session,
-         attrs = %{closed_at: nil},
          {:ok, reopened} <-
            scope
-           |> change_session(session, attrs)
+           |> change_session(session, reopen_attrs(session))
            |> Repo.update() do
       broadcast_session(scope, {:reopened, reopened})
+      broadcast_to_session(reopened, {:state_changed, reopened.state})
       {:ok, reopened}
     else
       %Session{closed_at: nil} -> {:ok, session}
       error -> error
     end
   end
+
+  @doc """
+  Starts a pending voting session, moving it to `:active` so it accepts votes.
+  """
+  def start_session(%Scope{} = scope, %Session{} = session) do
+    :ok = authorize(scope, session)
+
+    with %Session{state: :pending} <- session,
+         {:ok, started} <-
+           scope
+           |> change_session(session, %{state: :active})
+           |> Repo.update() do
+      broadcast_to_session(started, {:state_changed, :active})
+      {:ok, started}
+    else
+      %Session{} -> {:error, :invalid_transition}
+      error -> error
+    end
+  end
+
+  @doc """
+  Points a session at the question the presenter is currently showing.
+  """
+  def set_current_question(%Scope{} = scope, %Session{} = session, %Question{} = question) do
+    :ok = authorize(scope, session)
+
+    with :ok <- ensure_question_in_session(session, question),
+         {:ok, updated} <-
+           scope
+           |> change_session(session, %{current_question_id: question.id})
+           |> Repo.update() do
+      broadcast_to_session(updated, {:question_changed, question.id})
+      {:ok, updated}
+    end
+  end
+
+  # A survey keeps its :survey state when closed (it is tracked open or closed
+  # by closed_at); a voting session moves through the :pending/:active/:ended
+  # lifecycle.
+  defp close_attrs(%Session{state: :survey}), do: %{closed_at: DateTime.utc_now()}
+  defp close_attrs(%Session{}), do: %{closed_at: DateTime.utc_now(), state: :ended}
+
+  defp reopen_attrs(%Session{state: :survey}), do: %{closed_at: nil}
+  defp reopen_attrs(%Session{}), do: %{closed_at: nil, state: :active}
 
   # Participants and votes are part of the public, guest-facing path, so these
   # functions take a session and a participant rather than a %Scope{}.
@@ -169,7 +225,9 @@ defmodule Slidex.Voting do
     |> Tally.by_option()
   end
 
-  defp ensure_votable(%Session{state: state}) when state in [:active, :survey], do: :ok
+  defp ensure_votable(%Session{state: state, closed_at: nil}) when state in [:active, :survey],
+    do: :ok
+
   defp ensure_votable(%Session{}), do: {:error, :session_not_votable}
 
   defp ensure_question_in_session(%Session{poll_id: poll_id}, %Question{poll_id: poll_id}),

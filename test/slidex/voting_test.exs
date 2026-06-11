@@ -125,6 +125,14 @@ defmodule Slidex.VotingTest do
 
       assert {:ok, %Vote{}} = Voting.cast_vote(survey, p, q, o)
     end
+
+    test "rejects voting on a closed survey", %{scope: scope, poll: poll, question: q, option: o} do
+      survey = session_fixture(scope, poll, %{state: :survey})
+      {:ok, closed} = Voting.close_session(scope, survey)
+      p = participant_fixture(closed)
+
+      assert {:error, :session_not_votable} = Voting.cast_vote(closed, p, q, o)
+    end
   end
 
   describe "tally/2" do
@@ -141,6 +149,76 @@ defmodule Slidex.VotingTest do
       vote_fixture(session, participant_fixture(session), question, no)
 
       assert Voting.tally(session, question) == %{yes.id => 2, no.id => 1}
+    end
+  end
+
+  describe "session lifecycle" do
+    setup do
+      scope = user_scope_fixture()
+      %{scope: scope, poll: poll_fixture(scope)}
+    end
+
+    test "start_session moves a pending session to active", %{scope: scope, poll: poll} do
+      session = session_fixture(scope, poll, %{state: :pending})
+
+      assert {:ok, started} = Voting.start_session(scope, session)
+      assert started.state == :active
+      # the slug stays stable across the update
+      assert started.slug == session.slug
+    end
+
+    test "start_session rejects a session that is not pending", %{scope: scope, poll: poll} do
+      session = session_fixture(scope, poll, %{state: :active})
+      assert {:error, :invalid_transition} = Voting.start_session(scope, session)
+    end
+
+    test "closing a voting session ends it", %{scope: scope, poll: poll} do
+      session = session_fixture(scope, poll, %{state: :active})
+
+      assert {:ok, closed} = Voting.close_session(scope, session)
+      assert closed.state == :ended
+      assert closed.closed_at
+    end
+
+    test "closing a survey keeps its survey state", %{scope: scope, poll: poll} do
+      survey = session_fixture(scope, poll, %{state: :survey})
+
+      assert {:ok, closed} = Voting.close_session(scope, survey)
+      assert closed.state == :survey
+      assert closed.closed_at
+    end
+
+    test "reopening a voting session makes it active again", %{scope: scope, poll: poll} do
+      session = session_fixture(scope, poll, %{state: :active})
+      {:ok, closed} = Voting.close_session(scope, session)
+
+      assert {:ok, reopened} = Voting.reopen_session(scope, closed)
+      assert reopened.state == :active
+      assert is_nil(reopened.closed_at)
+    end
+
+    test "set_current_question points the session at a question", %{scope: scope, poll: poll} do
+      session = session_fixture(scope, poll, %{state: :active})
+      question = question_fixture(scope, poll)
+
+      assert {:ok, updated} = Voting.set_current_question(scope, session, question)
+      assert updated.current_question_id == question.id
+    end
+
+    test "set_current_question rejects a question from another poll", %{scope: scope, poll: poll} do
+      session = session_fixture(scope, poll, %{state: :active})
+      other_scope = user_scope_fixture()
+      stray = question_fixture(other_scope, poll_fixture(other_scope))
+
+      assert {:error, :question_not_in_session} =
+               Voting.set_current_question(scope, session, stray)
+    end
+
+    test "lifecycle actions require the owner", %{scope: scope, poll: poll} do
+      session = session_fixture(scope, poll, %{state: :pending})
+      other_scope = user_scope_fixture()
+
+      assert_raise MatchError, fn -> Voting.start_session(other_scope, session) end
     end
   end
 end
