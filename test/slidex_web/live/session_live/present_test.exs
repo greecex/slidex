@@ -50,6 +50,17 @@ defmodule SlidexWeb.SessionLive.PresentTest do
     assert has_element?(lv, "#session-share a", session.slug)
   end
 
+  test "collapses and expands the join panel", %{conn: conn, session: session} do
+    {:ok, lv, _html} = live(conn, ~p"/sessions/#{session}/present")
+    assert has_element?(lv, "#join-qr")
+
+    lv |> element("#toggle-share") |> render_click()
+    refute has_element?(lv, "#join-qr")
+
+    lv |> element("#toggle-share") |> render_click()
+    assert has_element?(lv, "#join-qr")
+  end
+
   test "advances to the next question", %{conn: conn, session: session, second: second} do
     {:ok, lv, _html} = live(conn, ~p"/sessions/#{session}/present")
 

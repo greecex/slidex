@@ -51,21 +51,40 @@ defmodule SlidexWeb.SessionLive.Present do
       <div
         :if={@session.state != :ended}
         id="session-share"
-        class="mt-6 flex flex-col items-center gap-5 rounded-xl border border-base-300 bg-base-100 p-6 text-center"
+        class="mt-6 rounded-xl border border-base-300 bg-base-100 p-6"
       >
-        <div>
-          <div class="text-xl font-semibold text-base-content/80">Scan to join</div>
-          <div id="join-qr" class="mt-2">{raw(@qr_svg)}</div>
-        </div>
-        <div class="space-y-1">
-          <div class="text-xl font-semibold text-base-content/80">Or open the link</div>
-          <a
-            href={@join_url}
-            target="_blank"
-            class="link link-primary font-mono text-lg font-semibold break-all"
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-sm font-medium text-base-content/60">Join</span>
+          <button
+            type="button"
+            id="toggle-share"
+            phx-click="toggle_share"
+            class="btn btn-ghost btn-sm btn-circle"
+            aria-label="Toggle join panel"
+            aria-expanded={to_string(@share_open)}
           >
-            {@join_url}
-          </a>
+            <.icon
+              name="hero-chevron-down"
+              class={["size-5 transition-transform", not @share_open && "rotate-180"]}
+            />
+          </button>
+        </div>
+
+        <div :if={@share_open} class="flex flex-col items-center gap-5 text-center">
+          <div>
+            <div class="text-xl font-semibold text-base-content/80">Scan to join</div>
+            <div id="join-qr" class="mt-2">{raw(@qr_svg)}</div>
+          </div>
+          <div class="space-y-1">
+            <div class="text-xl font-semibold text-base-content/80">Or open the link</div>
+            <a
+              href={@join_url}
+              target="_blank"
+              class="link link-primary font-mono text-lg font-semibold break-all"
+            >
+              {@join_url}
+            </a>
+          </div>
         </div>
       </div>
 
@@ -157,6 +176,7 @@ defmodule SlidexWeb.SessionLive.Present do
     socket =
       socket
       |> assign(:roster, %{named: [], guests: 0})
+      |> assign(:share_open, true)
       |> assign(:join_url, SessionQR.join_url(session))
       |> assign(:qr_svg, SessionQR.svg(session))
       |> assign_session(session, questions)
@@ -193,6 +213,10 @@ defmodule SlidexWeb.SessionLive.Present do
 
   def handle_event("next", _params, socket), do: {:noreply, move_question(socket, 1)}
   def handle_event("prev", _params, socket), do: {:noreply, move_question(socket, -1)}
+
+  def handle_event("toggle_share", _params, socket) do
+    {:noreply, update(socket, :share_open, &(not &1))}
+  end
 
   @impl true
   def handle_info({event, _payload}, socket) when event in [:state_changed, :question_changed] do
