@@ -372,4 +372,16 @@ defmodule SlidexWeb.SessionLive.Form do
   end
 
   defp poll_return_path(_poll, _session), do: ~p"/polls"
+
+  # The global VisitorIdentity hook (in Layouts.app) fires this on every LV.
+  # Tracking is handled centrally in GlobalPresence on_mount attach_hook.
+  def handle_event("visitor-identified", _params, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
+  # Global "app:visitors" presence_diff (GlobalPresence subscription).
+  def handle_info(%{topic: "app:visitors", event: "presence_diff"}, socket) do
+    {:noreply, socket}
+  end
 end

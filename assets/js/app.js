@@ -25,6 +25,8 @@ import { LiveSocket } from "phoenix_live_view";
 import { hooks as colocatedHooks } from "phoenix-colocated/slidex";
 import topbar from "../vendor/topbar";
 import Modal from "./modal";
+import VisitorIdentity from "./visitor_identity";
+import AccessCodeRemember from "./access_code_remember";
 
 const csrfToken = document
   .querySelector("meta[name='csrf-token']")
@@ -32,7 +34,7 @@ const csrfToken = document
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: { _csrf_token: csrfToken },
-  hooks: { ...colocatedHooks, Modal },
+  hooks: { ...colocatedHooks, Modal, VisitorIdentity, AccessCodeRemember },
 });
 
 // Show progress bar on live navigation and form submits

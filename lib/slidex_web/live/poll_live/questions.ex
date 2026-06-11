@@ -262,6 +262,13 @@ defmodule SlidexWeb.PollLive.Questions do
      |> assign(:questions, refreshed_poll.questions)}
   end
 
+  @impl true
+  # Global "app:visitors" presence_diff broadcasts. Questions editor does not
+  # use the global visitor strip.
+  def handle_info(%{topic: "app:visitors", event: "presence_diff"}, socket) do
+    {:noreply, socket}
+  end
+
   defp matches_question?(q, question) do
     Map.get(q, :id) == Map.get(question, :id) or
       (Map.get(q, :temp_id) && Map.get(q, :temp_id) == Map.get(question, :temp_id))
@@ -296,5 +303,11 @@ defmodule SlidexWeb.PollLive.Questions do
       <.icon name="hero-plus" /> Add Question
     </.button>
     """
+  end
+
+  # The global VisitorIdentity hook (in Layouts.app) fires this on every LV.
+  # Tracking is handled centrally in GlobalPresence on_mount attach_hook.
+  def handle_event("visitor-identified", _params, socket) do
+    {:noreply, socket}
   end
 end

@@ -91,8 +91,21 @@ defmodule SlidexWeb.UserLive.Registration do
     {:noreply, assign_form(socket, Map.put(changeset, :action, :validate))}
   end
 
+  # The global VisitorIdentity hook (in Layouts.app) fires this on every LV.
+  # Tracking is handled centrally in GlobalPresence on_mount attach_hook.
+  def handle_event("visitor-identified", _params, socket) do
+    {:noreply, socket}
+  end
+
   defp assign_form(socket, %Ecto.Changeset{} = changeset) do
     form = to_form(changeset, as: "user")
     assign(socket, form: form)
+  end
+
+  @impl true
+  # Global "app:visitors" presence_diff (GlobalPresence). Registration page
+  # does not display live visitor counts/idents.
+  def handle_info(%{topic: "app:visitors", event: "presence_diff"}, socket) do
+    {:noreply, socket}
   end
 end

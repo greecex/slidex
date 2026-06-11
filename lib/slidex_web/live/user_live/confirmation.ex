@@ -91,4 +91,16 @@ defmodule SlidexWeb.UserLive.Confirmation do
   def handle_event("submit", %{"user" => params}, socket) do
     {:noreply, assign(socket, form: to_form(params, as: "user"), trigger_submit: true)}
   end
+
+  # The global VisitorIdentity hook (in Layouts.app) fires this on every LV.
+  # Tracking is handled centrally in GlobalPresence on_mount attach_hook.
+  def handle_event("visitor-identified", _params, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
+  # Global "app:visitors" presence_diff. Confirmation page has no use for it.
+  def handle_info(%{topic: "app:visitors", event: "presence_diff"}, socket) do
+    {:noreply, socket}
+  end
 end

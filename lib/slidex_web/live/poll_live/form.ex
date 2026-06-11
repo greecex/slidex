@@ -77,6 +77,12 @@ defmodule SlidexWeb.PollLive.Form do
     {:noreply, assign(socket, form: to_form(changeset, action: :validate))}
   end
 
+  # The global VisitorIdentity hook (in Layouts.app) fires this on every LV.
+  # Tracking is handled centrally in GlobalPresence on_mount attach_hook.
+  def handle_event("visitor-identified", _params, socket) do
+    {:noreply, socket}
+  end
+
   def handle_event("save", %{"poll" => poll_params}, socket) do
     save_poll(socket, socket.assigns.live_action, poll_params)
   end
@@ -112,4 +118,11 @@ defmodule SlidexWeb.PollLive.Form do
   defp return_path(_scope, "index", _poll), do: ~p"/polls"
   defp return_path(_scope, "show", poll), do: ~p"/polls/#{poll}"
   defp return_path(_scope, "questions", poll), do: ~p"/polls/#{poll}/questions"
+
+  @impl true
+  # Global "app:visitors" presence_diff (see PollLive.Show for explanation).
+  # The form page does not render global visitor UI.
+  def handle_info(%{topic: "app:visitors", event: "presence_diff"}, socket) do
+    {:noreply, socket}
+  end
 end

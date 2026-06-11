@@ -20,7 +20,7 @@ defmodule SlidexWeb.Router do
   scope "/", SlidexWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    # Home is now a LiveView (see below in :current_user live_session)
   end
 
   # Other scopes may use custom stacks.
@@ -51,7 +51,10 @@ defmodule SlidexWeb.Router do
     pipe_through [:browser, :require_authenticated_user]
 
     live_session :require_authenticated_user,
-      on_mount: [{SlidexWeb.UserAuth, :require_authenticated}] do
+      on_mount: [
+        {SlidexWeb.UserAuth, :require_authenticated},
+        {SlidexWeb.GlobalPresence, :track}
+      ] do
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
 
@@ -72,10 +75,21 @@ defmodule SlidexWeb.Router do
     pipe_through [:browser]
 
     live_session :current_user,
-      on_mount: [{SlidexWeb.UserAuth, :mount_current_scope}] do
+      on_mount: [
+        {SlidexWeb.UserAuth, :mount_current_scope},
+        {SlidexWeb.GlobalPresence, :track}
+      ] do
       live "/users/register", UserLive.Registration, :new
       live "/users/log-in", UserLive.Login, :new
       live "/users/log-in/:token", UserLive.Confirmation, :new
+
+      live "/", HomeLive
+
+      # Public (or access-code protected) participant + MC view for live voting sessions.
+      # Uses the :current_user live_session (with mount_current_scope) deliberately so that
+      # current_scope may be nil for unauthenticated guests on public sessions.
+      # Non-public sessions perform an explicit login redirect inside the LiveView.
+      live "/vote/:slug", VoteLive
     end
 
     post "/users/log-in", UserSessionController, :create

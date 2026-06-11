@@ -128,6 +128,20 @@ defmodule SlidexWeb.UserLive.Login do
      |> push_navigate(to: ~p"/users/log-in")}
   end
 
+  # The global VisitorIdentity hook (in Layouts.app) fires this on every LV.
+  # Tracking is handled centrally in GlobalPresence on_mount attach_hook.
+  # We just ignore it here to prevent FunctionClauseError.
+  def handle_event("visitor-identified", _params, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
+  # Global "app:visitors" presence_diff broadcasts (see GlobalPresence + Layouts).
+  # Login page ignores (only HomeLive renders the global visitor strip).
+  def handle_info(%{topic: "app:visitors", event: "presence_diff"}, socket) do
+    {:noreply, socket}
+  end
+
   defp local_mail_adapter? do
     Application.get_env(:slidex, Slidex.Mailer)[:adapter] == Swoosh.Adapters.Local
   end

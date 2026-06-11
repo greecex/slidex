@@ -1,0 +1,237 @@
+defmodule SlidexWeb.HomeLive do
+  use SlidexWeb, :live_view
+
+  alias Slidex.Voting
+  alias SlidexWeb.Presence
+
+  @impl true
+  def render(assigns) do
+    ~H"""
+    <Layouts.app flash={@flash} current_scope={@current_scope}>
+      <div class="px-4 py-10 sm:px-6 sm:py-28 lg:px-8 xl:px-28 xl:py-32">
+        <div class="mx-auto max-w-xl lg:mx-0">
+          <SlidexWeb.Icons.logo width={80} />
+          <div class="mt-10 flex justify-between items-center">
+            <h1 class="flex items-center text-sm font-semibold leading-6">
+              {Slidex.application_name()}
+              <small class="badge badge-secondary badge-soft badge-sm ml-3">
+                v{Slidex.application_version()}
+              </small>
+            </h1>
+            <Layouts.theme_toggle />
+          </div>
+
+          <p class="text-[2rem] mt-4 font-semibold leading-10 tracking-tighter text-balance">
+            Dex, not do.
+          </p>
+          <p class="mt-4 leading-7 text-base-content/70">
+            Live polls with Phoenix LiveView.
+          </p>
+          <div class="flex">
+            <div class="w-full sm:w-auto">
+              <div class="mt-10 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-3">
+                <a
+                  href={~p"/polls"}
+                  class="group relative rounded-box px-6 py-4 text-sm font-semibold leading-6 sm:py-6"
+                >
+                  <span class="absolute inset-0 rounded-box bg-base-200 transition group-hover:bg-base-300 sm:group-hover:scale-105">
+                  </span>
+                  <span class="relative flex items-center gap-4 sm:flex-col">
+                    <.icon name="hero-clipboard-document-list" class="size-5" /> Polls
+                  </span>
+                </a>
+                <a
+                  href="https://github.com/greecex/slidex"
+                  class="group relative rounded-box px-6 py-4 text-sm font-semibold leading-6 sm:py-6"
+                >
+                  <span class="absolute inset-0 rounded-box bg-base-200 transition group-hover:bg-base-300 sm:group-hover:scale-105">
+                  </span>
+                  <span class="relative flex items-center gap-4 sm:flex-col">
+                    <SlidexWeb.Icons.github />
+                    <span class="font-mono">greecex/slidex</span>
+                  </span>
+                </a>
+              </div>
+              <div class="hidden mt-10 grid grid-cols-1 gap-y-4 text-sm leading-6 text-base-content/80 sm:grid-cols-2">
+                <div>
+                  <a
+                    href="https://elixirforum.com"
+                    class="group -mx-2 -my-0.5 inline-flex items-center gap-3 rounded-lg px-2 py-0.5 hover:bg-base-200 hover:text-base-content"
+                  >
+                    <svg
+                      viewBox="0 0 16 16"
+                      aria-hidden="true"
+                      class="h-4 w-4 fill-base-content/40 group-hover:fill-base-content"
+                    >
+                      <path d="M8 13.833c3.866 0 7-2.873 7-6.416C15 3.873 11.866 1 8 1S1 3.873 1 7.417c0 1.081.292 2.1.808 2.995.606 1.05.806 2.399.086 3.375l-.208.283c-.285.386-.01.905.465.85.852-.098 2.048-.318 3.137-.81a3.717 3.717 0 0 1 1.91-.318c.263.027.53.041.802.041Z" />
+                    </svg>
+                    Discuss on the Elixir Forum
+                  </a>
+                </div>
+                <div>
+                  <a
+                    href="https://discord.gg/elixir"
+                    class="group -mx-2 -my-0.5 inline-flex items-center gap-3 rounded-lg px-2 py-0.5 hover:bg-base-200 hover:text-base-content"
+                  >
+                    <svg
+                      viewBox="0 0 16 16"
+                      aria-hidden="true"
+                      class="h-4 w-4 fill-base-content/40 group-hover:fill-base-content"
+                    >
+                      <path d="M13.545 2.995c-1.02-.46-2.114-.8-3.257-.994a.05.05 0 0 0-.052.024c-.141.246-.297.567-.406.82a12.377 12.377 0 0 0-3.658 0 8.238 8.238 0 0 0-.412-.82.052.052 0 0 0-.052-.024 13.315 13.315 0 0 0-3.257.994.046.046 0 0 0-.021.018C.356 6.063-.213 9.036.066 11.973c.001.015.01.029.02.038a13.353 13.353 0 0 0 3.996 1.987.052.052 0 0 0 .056-.018c.308-.414.582-.85.818-1.309a.05.05 0 0 0-.028-.069 8.808 8.808 0 0 1-1.248-.585.05.05 0 0 1-.005-.084c.084-.062.168-.126.248-.191a.05.05 0 0 1 .051-.007c2.619 1.176 5.454 1.176 8.041 0a.05.05 0 0 1 .053.006c.08.065.164.13.248.192a.05.05 0 0 1-.004.084c-.399.23-.813.423-1.249.585a.05.05 0 0 0-.027.07c.24.457.514.893.817 1.307a.051.051 0 0 0 .056.019 13.31 13.31 0 0 0 4.001-1.987.05.05 0 0 0 .021-.037c.334-3.396-.559-6.345-2.365-8.96a.04.04 0 0 0-.021-.02Zm-8.198 7.19c-.789 0-1.438-.712-1.438-1.587 0-.874.637-1.586 1.438-1.586.807 0 1.45.718 1.438 1.586 0 .875-.637 1.587-1.438 1.587Zm5.316 0c-.788 0-1.438-.712-1.438-1.587 0-.874.637-1.586 1.438-1.586.807 0 1.45.718 1.438 1.586 0 .875-.63 1.587-1.438 1.587Z" />
+                    </svg>
+                    Join our Discord server
+                  </a>
+                </div>
+                <div>
+                  <a
+                    href="https://elixir-slack.community/"
+                    class="group -mx-2 -my-0.5 inline-flex items-center gap-3 rounded-lg px-2 py-0.5 hover:bg-base-200 hover:text-base-content"
+                  >
+                    <svg
+                      viewBox="0 0 16 16"
+                      aria-hidden="true"
+                      class="h-4 w-4 fill-base-content/40 group-hover:fill-base-content"
+                    >
+                      <path d="M3.361 10.11a1.68 1.68 0 1 1-1.68-1.681h1.68v1.682ZM4.209 10.11a1.68 1.68 0 1 1 3.361 0v4.21a1.68 1.68 0 1 1-3.361 0v-4.21ZM5.89 3.361a1.68 1.68 0 1 1 1.681-1.68v1.68H5.89ZM5.89 4.209a1.68 1.68 0 1 1 0 3.361H1.68a1.68 1.68 0 1 1 0-3.361h4.21ZM12.639 5.89a1.68 1.68 0 1 1 1.68 1.681h-1.68V5.89ZM11.791 5.89a1.68 1.68 0 1 1-3.361 0V1.68a1.68 1.68 0 0 1 3.361 0v4.21ZM10.11 12.639a1.68 1.68 0 1 1-1.681 1.68v-1.68h1.682ZM10.11 11.791a1.68 1.68 0 1 1 0-3.361h4.21a1.68 1.68 0 1 1 0 3.361h-4.21Z" />
+                    </svg>
+                    Join us on Slack
+                  </a>
+                </div>
+                <div>
+                  <a
+                    href="https://fly.io/docs/elixir/getting-started/"
+                    class="group -mx-2 -my-0.5 inline-flex items-center gap-3 rounded-lg px-2 py-0.5 hover:bg-base-200 hover:text-base-content"
+                  >
+                    <svg
+                      viewBox="0 0 20 20"
+                      aria-hidden="true"
+                      class="h-4 w-4 fill-base-content/40 group-hover:fill-base-content"
+                    >
+                      <path d="M1 12.5A4.5 4.5 0 005.5 17H15a4 4 0 001.866-7.539 3.504 3.504 0 00-4.504-4.272A4.5 4.5 0 004.06 8.235 4.502 4.502 0 001 12.5z" />
+                    </svg>
+                    Deploy your application
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+    <!-- Ongoing voting sessions -->
+      <div class="mt-12">
+        <h2 class="text-xl font-semibold mb-4">Ongoing voting sessions</h2>
+        <%= if @ongoing_sessions == [] do %>
+          <p class="text-base-content/70">No active voting sessions right now.</p>
+        <% else %>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <%= for session <- @ongoing_sessions do %>
+              <div class="rounded-lg border border-base-300 bg-base-100 p-4">
+                <div class="font-medium">{session.title}</div>
+                <div class="text-sm text-base-content/70 mt-1">{session.description}</div>
+                <div class="mt-2">
+                  <.link href={~p"/vote/#{session.slug}"} class="text-primary hover:underline text-sm">
+                    Join session →
+                  </.link>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+      
+    <!-- Live vote count -->
+      <div class="mt-12">
+        <h2 class="text-xl font-semibold mb-2">Total votes cast</h2>
+        <div class="text-5xl font-bold tabular-nums text-primary">{@total_votes}</div>
+        <p class="text-sm text-base-content/70">across all voting sessions</p>
+      </div>
+      
+    <!-- Global visitors -->
+      <div class="mt-12">
+        <div class="flex items-baseline gap-x-3">
+          <h2 class="text-xl font-semibold">Visitors online</h2>
+          <div class="text-4xl font-bold tabular-nums">{@visitor_count}</div>
+        </div>
+        <p class="text-sm text-base-content/70 mb-4">across the entire app right now</p>
+
+        <div class="flex flex-wrap gap-2">
+          <div
+            :if={@visitor_count == 0}
+            class="text-sm text-base-content/60 italic"
+          >
+            No one else is here yet. You are the first!
+          </div>
+          <div id="global-visitors" class="contents" phx-update="stream">
+            <div
+              :for={{id, visitor} <- @streams.visitors}
+              id={id}
+              class="tooltip"
+              data-tip={visitor.label}
+            >
+              <div class="w-8 h-8 rounded-full overflow-hidden ring-1 ring-base-300 bg-base-200">
+                {Phoenix.HTML.raw(identicon_svg(visitor.seed))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Layouts.app>
+    """
+  end
+
+  @impl true
+  def mount(_params, _session, socket) do
+    if connected?(socket) do
+      SlidexWeb.Endpoint.subscribe("global:votes")
+      SlidexWeb.Endpoint.subscribe("app:visitors")
+    end
+
+    ongoing = Voting.list_ongoing_sessions()
+    total = Voting.total_votes_cast()
+    presences = Presence.list_global()
+
+    {:ok,
+     socket
+     |> assign(:page_title, "Home")
+     |> stream(:visitors, global_visitors_list(presences), reset: true)
+     |> assign(:visitor_count, map_size(presences))
+     |> assign(:ongoing_sessions, ongoing)
+     |> assign(:total_votes, total)}
+  end
+
+  @impl true
+  def handle_info(:vote_cast, socket) do
+    {:noreply, assign(socket, :total_votes, socket.assigns.total_votes + 1)}
+  end
+
+  def handle_info(%{event: "presence_diff"}, socket) do
+    presences = Presence.list_global()
+
+    {:noreply,
+     socket
+     |> stream(:visitors, global_visitors_list(presences), reset: true)
+     |> assign(:visitor_count, map_size(presences))}
+  end
+
+  defp global_visitors_list(presences) do
+    presences
+    |> Enum.map(fn {key, %{metas: [meta | _]}} ->
+      %{id: key, seed: meta[:seed] || key, label: meta[:label] || "Visitor"}
+    end)
+    |> Enum.sort_by(& &1.seed)
+  end
+
+  # The global VisitorIdentity hook (in Layouts.app) fires this on every LV.
+  # Tracking is handled centrally in GlobalPresence on_mount attach_hook.
+  # We provide a no-op here for completeness (the attach_hook already did the global tracking).
+  def handle_event("visitor-identified", _params, socket) do
+    {:noreply, socket}
+  end
+
+  defp identicon_svg(seed) do
+    # Match style from layouts / previous
+    IdenticonSvg.generate(seed, 7, :split2, 1.0, 2, squircle_curvature: 0.8)
+  end
+end

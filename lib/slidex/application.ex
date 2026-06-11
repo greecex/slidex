@@ -12,6 +12,7 @@ defmodule Slidex.Application do
       Slidex.Repo,
       {DNSCluster, query: Application.get_env(:slidex, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Slidex.PubSub},
+      SlidexWeb.Presence,
       # Start a worker by calling: Slidex.Worker.start_link(arg)
       # {Slidex.Worker, arg},
       # Start to serve requests, typically the last entry

@@ -156,6 +156,19 @@ defmodule SlidexWeb.PollLive.Show do
           tabindex="-1"
           class="dropdown-content menu bg-base-100 rounded-box z-1 w-42 p-2 shadow-sm gap-y-2"
         >
+          <%= if @session.state != :survey do %>
+            <li>
+              <.link
+                href={~p"/vote/#{String.downcase(@session.slug)}"}
+                class="btn btn-primary btn-soft justify-start"
+              >
+                <.icon name="hero-play-circle" /> Voting
+              </.link>
+            </li>
+
+            <div class="divider divider-y my-0" />
+          <% end %>
+
           <%= if !@poll.archived_at and !@session.closed_at do %>
             <li>
               <.button
@@ -329,6 +342,17 @@ defmodule SlidexWeb.PollLive.Show do
      |> assign(:poll, poll)}
   end
 
+  @impl true
+  # Global "app:visitors" presence (from GlobalPresence on_mount in both live_sessions
+  # + subscribe("app:visitors") for logged-in users, and the global VisitorIdentity
+  # hook in Layouts.app) sends presence_diff broadcasts on any visitor join/leave
+  # across the whole app (for the global identicon strip on HomeLive, participant
+  # counts, etc). Poll admin pages (and most other LVs) do not care; without this
+  # clause they crash with FunctionClauseError on handle_info/2.
+  def handle_info(%{topic: "app:visitors", event: "presence_diff"}, socket) do
+    {:noreply, socket}
+  end
+
   attr :poll, :map, required: true
   attr :disabled, :boolean, required: false, default: false
 
@@ -378,5 +402,11 @@ defmodule SlidexWeb.PollLive.Show do
       <.icon name="hero-plus" /> Add Survey
     </.button>
     """
+  end
+
+  # The global VisitorIdentity hook (in Layouts.app) fires this on every LV.
+  # Tracking is handled centrally in GlobalPresence on_mount attach_hook.
+  def handle_event("visitor-identified", _params, socket) do
+    {:noreply, socket}
   end
 end

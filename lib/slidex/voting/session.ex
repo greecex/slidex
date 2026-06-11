@@ -20,9 +20,12 @@ defmodule Slidex.Voting.Session do
     field :access_code, :string
     field :expires_at, :utc_datetime
     field :closed_at, :utc_datetime_usec
+    field :show_results, :boolean, default: false
+    field :show_voter_choices, :boolean, default: false
 
     belongs_to :poll, Poll
     belongs_to :current_question, Question
+    has_many :results, Slidex.Voting.Result, on_delete: :delete_all
 
     timestamps(type: :utc_datetime_usec)
   end
@@ -50,6 +53,6 @@ defmodule Slidex.Voting.Session do
   end
 
   def put_slug(%Ecto.Changeset{} = changeset) do
-    put_change(changeset, :slug, Ecto.ULID.generate())
+    put_change(changeset, :slug, Ecto.ULID.generate() |> String.downcase())
   end
 end

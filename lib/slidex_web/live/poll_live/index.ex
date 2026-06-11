@@ -261,6 +261,13 @@ defmodule SlidexWeb.PollLive.Index do
      |> assign(:count, length(final_polls))}
   end
 
+  @impl true
+  # Global "app:visitors" presence_diff broadcasts (see PollLive.Show for explanation).
+  # Index page does not display the global visitor UI.
+  def handle_info(%{topic: "app:visitors", event: "presence_diff"}, socket) do
+    {:noreply, socket}
+  end
+
   defp list_polls(current_scope, opts) do
     opts = Keyword.put(opts, :preloads, :questions)
     Campaigns.list_polls(current_scope, opts)
@@ -275,4 +282,10 @@ defmodule SlidexWeb.PollLive.Index do
   defp filter_label(true), do: "All"
   defp filter_label(false), do: "Not archived"
   defp filter_label(:only), do: "Archived only"
+
+  # The global VisitorIdentity hook (in Layouts.app) fires this on every LV.
+  # Tracking is handled centrally in GlobalPresence on_mount attach_hook.
+  def handle_event("visitor-identified", _params, socket) do
+    {:noreply, socket}
+  end
 end

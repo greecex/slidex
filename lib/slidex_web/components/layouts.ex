@@ -123,6 +123,15 @@ defmodule SlidexWeb.Layouts do
       <div class="mx-auto max-w-2xl space-y-4">
         {render_slot(@inner_block)}
       </div>
+      
+    <!-- Global visitor identity hook (LocalStorage) for presence tracking across all LiveViews -->
+      <div
+        id="visitor-identity"
+        phx-hook="VisitorIdentity"
+        phx-update="ignore"
+        class="hidden"
+      >
+      </div>
     </main>
 
     <.flash_group flash={@flash} />
