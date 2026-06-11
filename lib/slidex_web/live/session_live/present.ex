@@ -51,21 +51,21 @@ defmodule SlidexWeb.SessionLive.Present do
       <div
         :if={@session.state != :ended}
         id="session-share"
-        class="mt-6 flex flex-wrap items-center gap-4 rounded-xl border border-base-300 bg-base-100 p-4"
+        class="mt-6 flex flex-col items-center gap-5 rounded-xl border border-base-300 bg-base-100 p-6 text-center"
       >
-        <div id="join-qr" class="shrink-0">{raw(@qr_svg)}</div>
+        <div>
+          <div class="text-xl font-semibold text-base-content/80">Scan to join</div>
+          <div id="join-qr" class="mt-2">{raw(@qr_svg)}</div>
+        </div>
         <div class="space-y-1">
-          <div class="text-sm font-medium text-base-content/70">Scan or visit to join</div>
+          <div class="text-xl font-semibold text-base-content/80">Or open the link</div>
           <a
             href={@join_url}
             target="_blank"
-            class="link link-primary font-mono text-sm break-all"
+            class="link link-primary font-mono text-lg font-semibold break-all"
           >
             {@join_url}
           </a>
-          <div :if={@session.access_code} class="text-sm text-base-content/70">
-            Access code: <span class="font-mono font-semibold">{@session.access_code}</span>
-          </div>
         </div>
       </div>
 
