@@ -265,7 +265,7 @@ Done in the live voting sessions work (2026-06-11): real-time participant view (
 Still open:
 - Drag-and-drop reordering (SortableJS or LiveView drag events).
 - Enforce `access_code` for public sessions. Today the unguessable `slug` link is the access mechanism; the code is shown but not required.
-- Participant-visible results (currently presenter only).
+- Live results for participants during voting. Today the final results are shown to participants once the session ends; live tallies stay presenter only.
 - Quiz scoring or a leaderboard (currently `is_correct` is reveal only).
 - Rich question content (markdown, images).
 - Oban jobs (e.g. auto-close expired sessions).

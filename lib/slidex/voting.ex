@@ -252,6 +252,19 @@ defmodule Slidex.Voting do
   end
 
   @doc """
+  Returns the vote tally for every question in the session, as a map of
+  `question_id => %{option_id => count}`. Used to show the final results to
+  participants once the session has ended.
+  """
+  def tally_by_question(%Session{} = session) do
+    Vote
+    |> where([v], v.session_id == ^session.id)
+    |> Repo.all()
+    |> Enum.group_by(& &1.question_id)
+    |> Map.new(fn {question_id, votes} -> {question_id, Tally.by_option(votes)} end)
+  end
+
+  @doc """
   Lists a session's poll questions with their options, with no scope. Used by
   the public join page for surveys, which show every question at once.
   """

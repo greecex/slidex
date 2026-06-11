@@ -5,7 +5,8 @@ defmodule SlidexWeb.SessionLive.Join do
   Anyone with the slug link can join; guests are allowed for public sessions,
   while a non-public session requires a logged in user. The view shows the
   current question (voting) or every question (survey) and lets the participant
-  vote. Results are presenter-only and are not shown here.
+  vote. Live results stay presenter-only, but once the session ends the final
+  tally is shown here too.
   """
   use SlidexWeb, :live_view
 
@@ -28,6 +29,43 @@ defmodule SlidexWeb.SessionLive.Join do
       <%= cond do %>
         <% @closed -> %>
           <p class="mt-6 text-base-content/70">This session has ended.</p>
+          <div :for={question <- @results} id={"result-#{question.id}"} class="mt-8 space-y-3">
+            <h2 class="text-xl font-semibold">{question.body}</h2>
+            <ul class="space-y-2">
+              <li
+                :for={option <- question.options}
+                class="rounded-lg border border-base-300 bg-base-100 p-3"
+              >
+                <div class="flex items-center justify-between gap-2">
+                  <span class="font-medium">
+                    {option.body}
+                    <span :if={option.is_correct} class="badge badge-success badge-sm">
+                      Correct
+                    </span>
+                    <span
+                      :if={@votes[question.id] == option.id}
+                      class="badge badge-primary badge-sm"
+                    >
+                      Your vote
+                    </span>
+                  </span>
+                  <span class="text-sm text-base-content/70">
+                    {result_count(@tallies, question.id, option.id)} ({result_pct(
+                      @tallies,
+                      question.id,
+                      option.id
+                    )}%)
+                  </span>
+                </div>
+                <progress
+                  class="progress progress-primary mt-2 w-full"
+                  value={result_pct(@tallies, question.id, option.id)}
+                  max="100"
+                >
+                </progress>
+              </li>
+            </ul>
+          </div>
         <% @questions == [] -> %>
           <p class="mt-6 text-base-content/70">Waiting for the host to start the session...</p>
         <% true -> %>
@@ -76,10 +114,7 @@ defmodule SlidexWeb.SessionLive.Join do
          |> redirect(to: ~p"/users/log-in")}
 
       not joinable?(session) ->
-        {:ok,
-         socket
-         |> assign(:page_title, session.title)
-         |> assign(session: session, closed: true, questions: [], votes: %{}, participant: nil)}
+        {:ok, assign_state(socket, session, nil)}
 
       true ->
         {:ok, participant} =
@@ -144,13 +179,16 @@ defmodule SlidexWeb.SessionLive.Join do
 
   defp assign_state(socket, session, participant) do
     votes = if participant, do: Voting.list_participant_votes(session, participant), else: %{}
+    closed = not joinable?(session)
 
     socket
     |> assign(:session, session)
     |> assign(:participant, participant)
-    |> assign(:closed, not joinable?(session))
+    |> assign(:closed, closed)
     |> assign(:questions, questions_to_show(session))
     |> assign(:votes, votes)
+    |> assign(:results, if(closed, do: Voting.list_session_questions(session), else: []))
+    |> assign(:tallies, if(closed, do: Voting.tally_by_question(session), else: %{}))
     |> assign(:page_title, session.title)
   end
 
@@ -192,4 +230,14 @@ defmodule SlidexWeb.SessionLive.Join do
 
   defp participant_role(%{user: %_{}}), do: :user
   defp participant_role(_scope), do: :guest
+
+  defp result_count(tallies, question_id, option_id) do
+    tallies |> Map.get(question_id, %{}) |> Map.get(option_id, 0)
+  end
+
+  defp result_pct(tallies, question_id, option_id) do
+    tally = Map.get(tallies, question_id, %{})
+    total = tally |> Map.values() |> Enum.sum()
+    if total > 0, do: round(result_count(tallies, question_id, option_id) / total * 100), else: 0
+  end
 end

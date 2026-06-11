@@ -153,6 +153,29 @@ defmodule Slidex.VotingTest do
     end
   end
 
+  describe "tally_by_question/1" do
+    test "groups option counts by question" do
+      scope = user_scope_fixture()
+      poll = poll_fixture(scope)
+      session = session_fixture(scope, poll, %{state: :active})
+      q1 = question_fixture(scope, poll)
+      a = option_fixture(scope, q1)
+      b = option_fixture(scope, q1)
+      q2 = question_fixture(scope, poll)
+      c = option_fixture(scope, q2)
+
+      vote_fixture(session, participant_fixture(session), q1, a)
+      vote_fixture(session, participant_fixture(session), q1, a)
+      vote_fixture(session, participant_fixture(session), q1, b)
+      vote_fixture(session, participant_fixture(session), q2, c)
+
+      assert Voting.tally_by_question(session) == %{
+               q1.id => %{a.id => 2, b.id => 1},
+               q2.id => %{c.id => 1}
+             }
+    end
+  end
+
   describe "session lifecycle" do
     setup do
       scope = user_scope_fixture()

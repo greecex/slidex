@@ -91,7 +91,7 @@
 - **PollLive.Questions**: Dedicated page for managing questions/options (reorder, edit, search existing bodies, add options).
 - **SessionLive.Form**: Create/edit Session (kind selector: voting/survey, poll selector when creating, access code generator, expiration, is_public).
 - **SessionLive.Present**: Presenter / MC view (`/sessions/:id/present`, owner only). Start/Previous/Next/End, live results with the correct option revealed, presence count and roster, and a QR join code.
-- **SessionLive.Join**: Public participant view (`/join/:slug`). Guest or logged-in voting (single choice), presence count. Public sessions admit guests; non-public sessions require login. Results are presenter only.
+- **SessionLive.Join**: Public participant view (`/join/:slug`). Guest or logged-in voting (single choice), presence count. Public sessions admit guests; non-public sessions require login. Live results are presenter only; the final results are shown here once the session ends.
 
 ### LiveComponents (self-contained where possible)
 - **QuestionLive** (in PollLive.Questions):

@@ -57,6 +57,28 @@ defmodule SlidexWeb.SessionLive.JoinTest do
     assert html =~ "ended"
   end
 
+  test "shows final results after the session ends", %{conn: conn} do
+    %{scope: scope, session: session, question: question, a: a} = active_session()
+    {:ok, participant} = Voting.find_or_create_participant(session, "voter-x")
+    {:ok, _} = Voting.cast_vote(session, participant, question, a)
+    {:ok, ended} = Voting.close_session(scope, session)
+
+    {:ok, lv, _html} = live(conn, ~p"/join/#{ended.slug}")
+
+    assert has_element?(lv, "#result-#{question.id}", "100%")
+  end
+
+  test "highlights the participant's own vote when the session ends live", %{conn: conn} do
+    %{scope: scope, session: session, question: question, a: a} = active_session()
+
+    {:ok, lv, _html} = live(conn, ~p"/join/#{session.slug}")
+    lv |> element("#option-#{a.id}") |> render_click()
+
+    {:ok, _ended} = Voting.close_session(scope, session)
+
+    assert has_element?(lv, "#result-#{question.id}", "Your vote")
+  end
+
   test "a pending session shows a waiting message", %{conn: conn} do
     scope = user_scope_fixture()
     poll = poll_fixture(scope)

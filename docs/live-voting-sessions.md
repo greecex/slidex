@@ -102,7 +102,7 @@ Add `Slidex.Presence` using `Phoenix.Presence`, `pubsub_server: Slidex.PubSub`, 
 Add public routes in a `live_session` that mounts the current scope but does not require authentication (mirror the existing `:current_user` block, or add a dedicated one). Join route: `live "/join/:slug", SessionLive.Join`. For this version the unguessable `slug` is the access mechanism, so there is no access code prompt. `is_public` still gates who may join: a public session admits guests, while a non public session requires the visitor to be logged in (a guest is sent to log in and returned). The `access_code` is displayed by the presenter but not enforced yet. Enforcing it later, only for public sessions, is the owner's stated preference and is left as a refinement.
 
 ### 3.7 Quiz semantics and is_correct (Decided: reveal only)
-`Option.is_correct` exists and is shown in the editor, but nothing consumes it. Decision: after a question ends, the results reveal the correct option or options (highlight those marked correct). There is no scoring and no leaderboard in this version. Results are presenter only (see 4.5), so the reveal appears on the presenter view.
+`Option.is_correct` exists and is shown in the editor, but nothing consumes it. Decision: after a question ends, the results reveal the correct option or options (highlight those marked correct). There is no scoring and no leaderboard in this version. Live results are presenter only (see 4.5); once the session ends, the final results, including the correct-option reveal, are shown to participants too.
 
 ---
 
@@ -155,7 +155,7 @@ Each feature lists its goal, data, context functions, web layer, real time, auth
 **Tests.** LiveView test that voting records a vote and that a `{:question_changed}` broadcast updates the participant's screen. Presence can be exercised at the context or LiveView level minimally.
 
 ### 4.5 Live results display plus QR
-**Goal (results).** Show vote tallies updating live on the presenter view. Participants do not see results in this version (presenter only).
+**Goal (results).** Show vote tallies updating live on the presenter view. Live tallies are presenter only; participants see the final results on the join page once the session ends.
 
 **Web (results).** A results component rendered from `Voting.tally`, on the presenter view only. Recompute and re-render on `{:results_updated, question_id}`. Show counts and percentages. After a question ends, highlight the correct option or options (`is_correct`, see 3.7).
 
@@ -204,7 +204,7 @@ All eight questions are answered. These are binding for this version.
 4. Quiz mode: reveal only, no scoring or leaderboard (3.7).
 5. Lifecycle: `state` is the source of truth; `closed_at` is only a timestamp; reopen is kept (3.3).
 6. Access: the `slug` link is the access mechanism; no access code prompt in this version; `is_public` gates guest versus logged in (3.6).
-7. Results visibility: presenter only in this version (4.5).
+7. Results visibility: live tallies are presenter only; the final results are revealed to participants after the session ends (4.5).
 8. Surveys: reuse the participant and vote model but skip the MC flow; all questions stay open until the session is closed (sections 1 and 4.4).
 
 ---
@@ -217,7 +217,7 @@ All six batches in section 5 are built, tested, and committed. Where each landed
 - MC flow (4.2): `Voting.start_session/2` and `set_current_question/3`; `close_session/2` and `reopen_session/2` now drive `state` (a voting session ends, a survey keeps `:survey`). Room topic via `Voting.session_topic/1` and `subscribe_session/1`. Presenter `SlidexWeb.SessionLive.Present` at `/sessions/:id/present`.
 - Join and voting (4.3, 4.4): public `SlidexWeb.SessionLive.Join` at `/join/:slug`, guest identity via the `ensure_participant_token` plug, and the public lookups `get_session_by_slug/1`, `list_session_questions/1`, `list_participant_votes/2`.
 - Presence (4.4): `Slidex.Presence` (supervised after PubSub), tracked in both views, with a live count and a role-tagged roster.
-- Live results (4.5): `cast_vote/4` broadcasts `{:results_updated, question_id}`; the presenter recomputes `tally/2` and reveals the correct option.
+- Live results (4.5): `cast_vote/4` broadcasts `{:results_updated, question_id}`; the presenter recomputes `tally/2` and reveals the correct option. Participants see the final results on the join page once the session ends (`tally_by_question/1`).
 - QR (4.5): `{:qr_code, "~> 3.2"}` and `SlidexWeb.SessionQR`, rendered on the presenter view next to the join URL and access code.
 
-Deferred (noted in the decisions): enforcing `access_code` for public sessions, participant-visible results, and any quiz scoring.
+Deferred (noted in the decisions): enforcing `access_code` for public sessions, live results for participants during voting (the final results are shown after the session ends), and quiz scoring.
