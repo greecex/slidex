@@ -50,6 +50,11 @@ defmodule Slidex.Voting.Session do
   end
 
   def put_slug(%Ecto.Changeset{} = changeset) do
-    put_change(changeset, :slug, Ecto.ULID.generate())
+    # The slug is a stable, public identifier. Generate it once, when absent,
+    # so updates (close, reopen, advancing the question) keep the same join URL.
+    case get_field(changeset, :slug) do
+      nil -> put_change(changeset, :slug, Ecto.ULID.generate())
+      _slug -> changeset
+    end
   end
 end
