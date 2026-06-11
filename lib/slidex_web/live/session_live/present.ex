@@ -63,10 +63,9 @@ defmodule SlidexWeb.SessionLive.Present do
             aria-label="Toggle join panel"
             aria-expanded={to_string(@share_open)}
           >
-            <.icon
-              name="hero-chevron-down"
-              class={["size-5 transition-transform", not @share_open && "rotate-180"]}
-            />
+            <span class={["transition-transform", not @share_open && "rotate-180"]}>
+              <.icon name="hero-chevron-down" class="size-5" />
+            </span>
           </button>
         </div>
 
