@@ -73,7 +73,8 @@ defmodule Slidex.MixProject do
       {:ecto_ulid_next, "~> 1.0"},
 
       # Images/graphics
-      {:identicon_svg, "~> 0.9.5"}
+      {:identicon_svg, "~> 0.9.5"},
+      {:qr_code, "~> 3.2"}
     ]
   end
 

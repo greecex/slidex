@@ -9,6 +9,7 @@ defmodule SlidexWeb.SessionLive.Present do
   use SlidexWeb, :live_view
 
   alias Slidex.{Polling, Presence, Voting}
+  alias SlidexWeb.SessionQR
 
   @impl true
   def render(assigns) do
@@ -29,9 +30,6 @@ defmodule SlidexWeb.SessionLive.Present do
         <div id="presence-count" class="badge badge-ghost badge-lg gap-1">
           <.icon name="hero-users" class="size-4" /> {length(@present)} here
         </div>
-        <div :if={@session.access_code} class="text-sm text-base-content/70">
-          Access code: <span class="font-mono font-semibold">{@session.access_code}</span>
-        </div>
       </div>
 
       <div :if={@present != []} id="presence-roster" class="mt-3 flex flex-wrap gap-2">
@@ -41,6 +39,27 @@ defmodule SlidexWeb.SessionLive.Present do
         >
           {person_name(person)}
         </span>
+      </div>
+
+      <div
+        :if={@session.state != :ended}
+        id="session-share"
+        class="mt-6 flex flex-wrap items-center gap-4 rounded-xl border border-base-300 bg-base-100 p-4"
+      >
+        <div id="join-qr" class="shrink-0">{raw(@qr_svg)}</div>
+        <div class="space-y-1">
+          <div class="text-sm font-medium text-base-content/70">Scan or visit to join</div>
+          <a
+            href={@join_url}
+            target="_blank"
+            class="link link-primary font-mono text-sm break-all"
+          >
+            {@join_url}
+          </a>
+          <div :if={@session.access_code} class="text-sm text-base-content/70">
+            Access code: <span class="font-mono font-semibold">{@session.access_code}</span>
+          </div>
+        </div>
       </div>
 
       <div class="mt-6 flex flex-row flex-wrap gap-2">
@@ -131,6 +150,8 @@ defmodule SlidexWeb.SessionLive.Present do
     socket =
       socket
       |> assign(:present, [])
+      |> assign(:join_url, SessionQR.join_url(session))
+      |> assign(:qr_svg, SessionQR.svg(session))
       |> assign_session(session, questions)
 
     if connected?(socket) do

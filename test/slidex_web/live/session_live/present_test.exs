@@ -43,6 +43,13 @@ defmodule SlidexWeb.SessionLive.PresentTest do
     assert has_element?(lv, "#presence-count")
   end
 
+  test "shows the join QR code and link", %{conn: conn, session: session} do
+    {:ok, lv, _html} = live(conn, ~p"/sessions/#{session}/present")
+
+    assert has_element?(lv, "#join-qr svg")
+    assert has_element?(lv, "#session-share a", session.slug)
+  end
+
   test "advances to the next question", %{conn: conn, session: session, second: second} do
     {:ok, lv, _html} = live(conn, ~p"/sessions/#{session}/present")
 
