@@ -63,6 +63,7 @@ defmodule SlidexWeb.Router do
 
       live "/sessions/new", SessionLive.Form, :new
       live "/sessions/:id/edit", SessionLive.Form, :edit
+      live "/sessions/:id/present", SessionLive.Present, :present
     end
 
     post "/users/update-password", UserSessionController, :update_password

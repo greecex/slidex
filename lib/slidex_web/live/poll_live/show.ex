@@ -156,6 +156,15 @@ defmodule SlidexWeb.PollLive.Show do
           tabindex="-1"
           class="dropdown-content menu bg-base-100 rounded-box z-1 w-42 p-2 shadow-sm gap-y-2"
         >
+          <li :if={@session.state != :survey}>
+            <.button
+              navigate={~p"/sessions/#{@session}/present"}
+              class="btn btn-primary btn-soft justify-start"
+            >
+              <.icon name="hero-play-circle" /> Present
+            </.button>
+          </li>
+
           <%= if !@poll.archived_at and !@session.closed_at do %>
             <li>
               <.button
@@ -208,9 +217,9 @@ defmodule SlidexWeb.PollLive.Show do
     """
   end
 
-  # Closing a session sets closed_at but leaves the state enum untouched
-  # (a survey must keep its :survey state), so derive the label from closed_at.
-  defp status_label(%{closed_at: %DateTime{}}), do: "Closed"
+  # state drives the lifecycle (pending/active/ended); a survey keeps :survey
+  # and is shown as Closed once closed_at is set.
+  defp status_label(%{state: :survey, closed_at: %DateTime{}}), do: "Closed"
   defp status_label(%{state: state}), do: String.capitalize(to_string(state))
 
   @impl true
