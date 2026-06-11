@@ -119,6 +119,40 @@ defmodule SlidexWeb.SessionLive.Form do
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <h3 class="font-semibold mb-2">
+                Access code <span class="font-light text-info text-xs">(optional)</span>
+                <span class="badge badge-ghost badge-sm align-middle">Not enforced yet</span>
+              </h3>
+              <p class="text-neutral text-xs border border-dashed border-base-300 bg-base-200 rounded p-3">
+                Saved with the session for an upcoming release. Joining does not require it yet.
+              </p>
+              <.button
+                :if={!@form[:access_code].value}
+                type="button"
+                phx-click="generate_code"
+                class="btn btn-block btn-soft btn-primary mt-1"
+              >
+                <.icon name="hero-lock-closed" /> Generate code
+              </.button>
+
+              <div
+                :if={@form[:access_code].value}
+                class="w-full flex flex-row gap-x-1 items-center mt-1"
+              >
+                <div class="font-semibold text-center flex-1 border border-base-200 rounded py-1 px-2">
+                  {@form[:access_code].value}
+                </div>
+                <.button
+                  type="button"
+                  phx-click="clear_code"
+                  class="btn btn-soft btn-error"
+                >
+                  <.icon name="hero-lock-open" /> Remove code
+                </.button>
+              </div>
+            </div>
+
+            <div>
+              <h3 class="font-semibold mb-2">
                 Expiration <span class="font-light text-info text-xs">(optional)</span>
               </h3>
               <p class="text-neutral text-xs border border-dashed border-base-300 bg-base-200 rounded p-3">
@@ -226,6 +260,26 @@ defmodule SlidexWeb.SessionLive.Form do
     {:noreply, socket}
   end
 
+  def handle_event("generate_code", _params, socket) do
+    current_params = socket.assigns.form.params || %{}
+    new_params = Map.put(current_params, "access_code", Slidex.Voting.AccessCode.generate())
+
+    changeset =
+      Voting.change_session(socket.assigns.current_scope, socket.assigns.session, new_params)
+
+    {:noreply, assign(socket, form: to_form(changeset))}
+  end
+
+  def handle_event("clear_code", _params, socket) do
+    current_params = socket.assigns.form.params || %{}
+    new_params = Map.put(current_params, "access_code", nil)
+
+    changeset =
+      Voting.change_session(socket.assigns.current_scope, socket.assigns.session, new_params)
+
+    {:noreply, assign(socket, form: to_form(changeset))}
+  end
+
   defp maybe_assign_selected_poll(socket, nil), do: socket
 
   defp maybe_assign_selected_poll(socket, poll_id) do
@@ -258,6 +312,7 @@ defmodule SlidexWeb.SessionLive.Form do
     params =
       session_params
       |> Map.put("state", state)
+      |> Map.put("access_code", socket.assigns.form[:access_code].value)
 
     case Voting.update_session(
            socket.assigns.current_scope,
@@ -290,6 +345,7 @@ defmodule SlidexWeb.SessionLive.Form do
     params =
       session_params
       |> Map.put("state", state)
+      |> Map.put("access_code", socket.assigns.form[:access_code].value)
 
     case Voting.create_session(scope, poll, params) do
       {:ok, session} ->
