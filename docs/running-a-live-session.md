@@ -40,6 +40,7 @@ The app must be on a publicly reachable domain over https so phones can open the
 - **No access code is required** to join in this version. The unguessable slug link (the QR) is the access mechanism. The code shown in the session form is not enforced.
 - Votes are **anonymous and single choice**. A re-vote replaces the previous one. Results are aggregate counts and are shown on the presenter only.
 - In the presence roster, named people (you, and anyone logged in) appear as individual chips, while everyone else is summed up as "N guests". The "N here" count is the true number connected.
+- To review the tally yourself, use the **Results** action on the poll's session list (`/sessions/:id/results`). It shows every question's result and updates live. This is also how you watch a **survey**, which has no presenter view, fill in.
 - If you **End** a session and need to resume, **Reopen** it from the poll's session list. It returns to Active and people can rejoin with the same link.
 - If a screen ever looks stale, a browser refresh re-syncs it, since the state is restored from the server.
 

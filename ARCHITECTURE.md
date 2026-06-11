@@ -144,6 +144,7 @@ PollLive.Questions
 
 SessionLive.Form
 SessionLive.Present   (presenter / MC, owner only: /sessions/:id/present)
+SessionLive.Results   (owner results, live updating: /sessions/:id/results)
 SessionLive.Join      (public participant: /join/:slug)
 ```
 

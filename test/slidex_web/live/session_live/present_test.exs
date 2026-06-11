@@ -95,6 +95,6 @@ defmodule SlidexWeb.SessionLive.PresentTest do
     {:ok, participant} = Voting.find_or_create_participant(started, "voter-1")
     {:ok, _vote} = Voting.cast_vote(started, participant, first, option)
 
-    assert render(lv) =~ "100%"
+    assert has_element?(lv, "#current-question", "100%")
   end
 end

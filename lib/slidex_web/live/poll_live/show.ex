@@ -178,6 +178,15 @@ defmodule SlidexWeb.PollLive.Show do
             </.button>
           </li>
 
+          <li>
+            <.button
+              navigate={~p"/sessions/#{@session}/results"}
+              class="btn btn-soft btn-neutral justify-start"
+            >
+              <.icon name="hero-chart-bar" /> Results
+            </.button>
+          </li>
+
           <%= if !@poll.archived_at and !@session.closed_at do %>
             <li>
               <.button

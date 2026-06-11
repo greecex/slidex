@@ -37,6 +37,15 @@ defmodule SlidexWeb.PollLiveTest do
                ~s|#copy-link-#{session.id}[data-url$="/join/#{session.slug}"]|
              )
     end
+
+    test "links to each session's results", %{conn: conn, scope: scope} do
+      poll = poll_fixture(scope)
+      session = session_fixture(scope, poll)
+
+      {:ok, show_live, _html} = live(conn, ~p"/polls/#{poll}")
+
+      assert has_element?(show_live, ~s|a[href="/sessions/#{session.id}/results"]|)
+    end
   end
 
   describe "Form" do

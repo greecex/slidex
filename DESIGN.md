@@ -91,6 +91,7 @@
 - **PollLive.Questions**: Dedicated page for managing questions/options (reorder, edit, search existing bodies, add options).
 - **SessionLive.Form**: Create/edit Session (kind selector: voting/survey, poll selector when creating, access code generator, expiration, is_public).
 - **SessionLive.Present**: Presenter / MC view (`/sessions/:id/present`, owner only). Start/Previous/Next/End, live results with the correct option revealed, presence count and roster, and a QR join code.
+- **SessionLive.Results**: Owner-facing results (`/sessions/:id/results`). Every question's tally with the correct option revealed; subscribes to the room topic so it updates live (watch survey responses arrive, review after close).
 - **SessionLive.Join**: Public participant view (`/join/:slug`). Guest or logged-in voting (single choice), presence count. Public sessions admit guests; non-public sessions require login. Live results are presenter only; the final results are shown here once the session ends.
 
 ### LiveComponents (self-contained where possible)
@@ -220,7 +221,7 @@ lib/slidex/
 │   │   │   ├── index.ex, form.ex, show.ex, questions.ex
 │   │   │   └── components/
 │   │   │       ├── question_live.ex, option_live.ex, session_modal.ex
-│   │   └── session_live/form.ex, present.ex, join.ex
+│   │   └── session_live/form.ex, present.ex, results.ex, join.ex
 │   ├── session_qr.ex
 │   └── components/
 │       ├── modals.ex (colocated Modal hook)
