@@ -70,13 +70,15 @@ defmodule SlidexWeb.SessionLive.PresentTest do
     assert render(lv) =~ second.body
   end
 
-  test "ends the session", %{conn: conn, session: session} do
+  test "ends the session but keeps the final results visible", %{conn: conn, session: session} do
     {:ok, lv, _html} = live(conn, ~p"/sessions/#{session}/present")
 
     lv |> element("#start-session") |> render_click()
     lv |> element("#end-session") |> render_click()
 
     assert render(lv) =~ "ended"
+    assert has_element?(lv, "#current-question")
+    refute has_element?(lv, "#end-session")
   end
 
   test "shows live results as votes come in", %{

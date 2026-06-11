@@ -98,7 +98,7 @@ defmodule SlidexWeb.SessionLive.Present do
           <.icon name="hero-play" /> Start
         </.button>
 
-        <%= if @session.state == :active do %>
+        <%= if @session.state in [:active, :ended] do %>
           <.button id="prev-question" phx-click="prev" disabled={@current_index in [nil, 0]}>
             <.icon name="hero-chevron-left" /> Previous
           </.button>
@@ -110,6 +110,7 @@ defmodule SlidexWeb.SessionLive.Present do
             Next <.icon name="hero-chevron-right" />
           </.button>
           <.button
+            :if={@session.state == :active}
             id="end-session"
             phx-click="end"
             data-confirm="End this session?"
@@ -126,12 +127,15 @@ defmodule SlidexWeb.SessionLive.Present do
             <p class="text-base-content/70">Surveys are self-paced and are not presented.</p>
           <% @session.state == :pending -> %>
             <p class="text-base-content/70">Press Start to begin the session.</p>
-          <% @session.state == :ended -> %>
-            <p class="text-base-content/70">This session has ended.</p>
           <% @session.current_question -> %>
             <div id="current-question" class="space-y-4">
-              <div class="text-base text-base-content/60">
-                Question {(@current_index || 0) + 1} of {length(@questions)}
+              <div class="flex flex-wrap items-center gap-3">
+                <div class="text-base text-base-content/60">
+                  Question {(@current_index || 0) + 1} of {length(@questions)}
+                </div>
+                <span :if={@session.state == :ended} class="badge badge-neutral">
+                  Final results, session ended
+                </span>
               </div>
               <h2 class="text-3xl font-semibold">{@session.current_question.body}</h2>
               <ul class="space-y-3">
@@ -159,6 +163,8 @@ defmodule SlidexWeb.SessionLive.Present do
                 </li>
               </ul>
             </div>
+          <% @session.state == :ended -> %>
+            <p class="text-base-content/70">This session has ended.</p>
           <% true -> %>
             <p class="text-base-content/70">No question selected yet.</p>
         <% end %>
