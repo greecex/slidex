@@ -9,7 +9,7 @@ defmodule SlidexWeb.SessionLive.Join do
   """
   use SlidexWeb, :live_view
 
-  alias Slidex.Voting
+  alias Slidex.{Presence, Voting}
 
   @impl true
   def render(assigns) do
@@ -18,6 +18,11 @@ defmodule SlidexWeb.SessionLive.Join do
       <.header>
         {@session.title}
         <:subtitle :if={@session.description}>{@session.description}</:subtitle>
+        <:actions>
+          <div id="presence-count" class="badge badge-ghost gap-1">
+            <.icon name="hero-users" class="size-4" /> {length(@present)} here
+          </div>
+        </:actions>
       </.header>
 
       <%= cond do %>
@@ -51,6 +56,8 @@ defmodule SlidexWeb.SessionLive.Join do
 
   @impl true
   def mount(%{"slug" => slug}, session, socket) do
+    socket = assign(socket, :present, [])
+
     case Voting.get_session_by_slug(slug) do
       nil ->
         {:ok, socket |> put_flash(:error, "That session was not found.") |> redirect(to: ~p"/")}
@@ -82,9 +89,22 @@ defmodule SlidexWeb.SessionLive.Join do
             participant_attrs(socket.assigns.current_scope)
           )
 
-        if connected?(socket), do: Voting.subscribe_session(session)
+        socket = assign_state(socket, session, participant)
 
-        {:ok, assign_state(socket, session, participant)}
+        if connected?(socket) do
+          Voting.subscribe_session(session)
+
+          Presence.track(
+            self(),
+            Voting.session_topic(session),
+            participant.id,
+            participant_meta(participant, socket.assigns.current_scope)
+          )
+
+          {:ok, assign_presence(socket)}
+        else
+          {:ok, socket}
+        end
     end
   end
 
@@ -107,11 +127,19 @@ defmodule SlidexWeb.SessionLive.Join do
     {:noreply, refresh(socket)}
   end
 
+  def handle_info(%{event: "presence_diff"}, socket) do
+    {:noreply, assign_presence(socket)}
+  end
+
   def handle_info(_message, socket), do: {:noreply, socket}
 
   defp refresh(socket) do
     session = Voting.get_session_by_slug(socket.assigns.session.slug)
     assign_state(socket, session, socket.assigns.participant)
+  end
+
+  defp assign_presence(socket) do
+    assign(socket, :present, Presence.list_present(Voting.session_topic(socket.assigns.session)))
   end
 
   defp assign_state(socket, session, participant) do
@@ -153,4 +181,15 @@ defmodule SlidexWeb.SessionLive.Join do
     do: %{user_id: id, display_name: username}
 
   defp participant_attrs(_scope), do: %{}
+
+  defp participant_meta(participant, scope) do
+    %{
+      display_name: participant.display_name,
+      role: participant_role(scope),
+      joined_at: System.system_time(:millisecond)
+    }
+  end
+
+  defp participant_role(%{user: %_{}}), do: :user
+  defp participant_role(_scope), do: :guest
 end

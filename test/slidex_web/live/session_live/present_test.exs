@@ -37,6 +37,12 @@ defmodule SlidexWeb.SessionLive.PresentTest do
     assert has_element?(lv, "#next-question")
   end
 
+  test "shows a presence count", %{conn: conn, session: session} do
+    {:ok, lv, _html} = live(conn, ~p"/sessions/#{session}/present")
+
+    assert has_element?(lv, "#presence-count")
+  end
+
   test "advances to the next question", %{conn: conn, session: session, second: second} do
     {:ok, lv, _html} = live(conn, ~p"/sessions/#{session}/present")
 

@@ -8,7 +8,7 @@ defmodule SlidexWeb.SessionLive.Present do
   """
   use SlidexWeb, :live_view
 
-  alias Slidex.{Polling, Voting}
+  alias Slidex.{Polling, Presence, Voting}
 
   @impl true
   def render(assigns) do
@@ -26,9 +26,21 @@ defmodule SlidexWeb.SessionLive.Present do
 
       <div class="flex flex-wrap items-center gap-3">
         <div class="badge badge-neutral badge-lg">{status_label(@session)}</div>
+        <div id="presence-count" class="badge badge-ghost badge-lg gap-1">
+          <.icon name="hero-users" class="size-4" /> {length(@present)} here
+        </div>
         <div :if={@session.access_code} class="text-sm text-base-content/70">
           Access code: <span class="font-mono font-semibold">{@session.access_code}</span>
         </div>
+      </div>
+
+      <div :if={@present != []} id="presence-roster" class="mt-3 flex flex-wrap gap-2">
+        <span
+          :for={person <- @present}
+          class={["badge badge-sm", role_badge_class(person.role)]}
+        >
+          {person_name(person)}
+        </span>
       </div>
 
       <div class="mt-6 flex flex-row flex-wrap gap-2">
@@ -116,9 +128,25 @@ defmodule SlidexWeb.SessionLive.Present do
     session = Voting.get_session!(scope, id)
     questions = Polling.list_questions(scope, session.poll)
 
-    if connected?(socket), do: Voting.subscribe_session(session)
+    socket =
+      socket
+      |> assign(:present, [])
+      |> assign_session(session, questions)
 
-    {:ok, assign_session(socket, session, questions)}
+    if connected?(socket) do
+      Voting.subscribe_session(session)
+
+      Presence.track(
+        self(),
+        Voting.session_topic(session),
+        "owner:#{scope.user.id}",
+        owner_meta(scope)
+      )
+
+      {:ok, assign_presence(socket)}
+    else
+      {:ok, socket}
+    end
   end
 
   @impl true
@@ -145,6 +173,10 @@ defmodule SlidexWeb.SessionLive.Present do
 
   def handle_info({:results_updated, _question_id}, socket) do
     {:noreply, assign_tally(socket)}
+  end
+
+  def handle_info(%{event: "presence_diff"}, socket) do
+    {:noreply, assign_presence(socket)}
   end
 
   def handle_info(_message, socket), do: {:noreply, socket}
@@ -197,6 +229,26 @@ defmodule SlidexWeb.SessionLive.Present do
 
     assign(socket, :tally, tally)
   end
+
+  defp assign_presence(socket) do
+    assign(socket, :present, Presence.list_present(Voting.session_topic(socket.assigns.session)))
+  end
+
+  defp owner_meta(scope) do
+    %{
+      display_name: scope.user.username,
+      role: :owner,
+      joined_at: System.system_time(:millisecond)
+    }
+  end
+
+  defp person_name(%{display_name: name}) when is_binary(name) and name != "", do: name
+  defp person_name(%{role: :owner}), do: "Host"
+  defp person_name(_person), do: "Guest"
+
+  defp role_badge_class(:owner), do: "badge-primary"
+  defp role_badge_class(:user), do: "badge-info"
+  defp role_badge_class(_role), do: "badge-ghost"
 
   defp count(tally, option_id), do: Map.get(tally, option_id, 0)
 

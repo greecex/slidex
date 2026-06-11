@@ -34,6 +34,14 @@ defmodule SlidexWeb.SessionLive.JoinTest do
     assert has_element?(lv, "#option-#{a.id}.btn-primary")
   end
 
+  test "shows a presence count", %{conn: conn} do
+    %{session: session} = active_session()
+
+    {:ok, lv, _html} = live(conn, ~p"/join/#{session.slug}")
+
+    assert has_element?(lv, "#presence-count")
+  end
+
   test "a non-public session requires login", %{conn: conn} do
     %{session: session} = active_session(is_public: false)
 
