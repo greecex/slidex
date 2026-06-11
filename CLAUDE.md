@@ -23,6 +23,7 @@ The initial implementation was written by Isaak, before the conventions in this 
 - [docs/testing-posture.md](docs/testing-posture.md) - Testing strategy. Pure functions first, doctests on every public function, no business logic in LiveView.
 - [AGENTS.md](AGENTS.md) - Phoenix 1.8, Elixir, LiveView, Ecto, and HEEx conventions. Read before writing any UI, template, or LiveView code.
 - [docs/live-voting-sessions.md](docs/live-voting-sessions.md) - Design and build plan for live sessions: presence, MC flow, vote tracking and results, join page, and QR code.
+- [docs/running-a-live-session.md](docs/running-a-live-session.md) - Runbook for hosting a live session in front of an audience, with a deploy and day-of checklist.
 
 ## Commands
 
