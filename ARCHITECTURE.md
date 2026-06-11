@@ -1,7 +1,7 @@
 # Slidex – Architecture Document
 
-**Version**: 2.0 (Updated)  
-**Date**: 2026-06-10  
+**Version**: 2.1 (Updated)  
+**Date**: 2026-06-11  
 **Status**: Reflects current concatenated codebase
 
 ---
@@ -29,7 +29,8 @@ Slidex App
 ├── Accounts          (User, UserToken, Scope, magic-link auth)
 ├── Campaigns         (Poll lifecycle, ownership, duplicate, archive)
 ├── Polling           (Question + Option + Reorder + Search)
-├── Voting            (Session management, close/reopen, AccessCode)
+├── Voting            (Sessions, participants, votes, MC lifecycle, live room, Tally, AccessCode)
+├── Presence          (Phoenix.Presence: who is in a live session)
 ├── Authorization     (central ownership checks)
 ├── Preloader         (ordered preloads + sorting)
 └── Search            (body search with exclusion)
@@ -55,6 +56,11 @@ erDiagram
     POLLS ||--o{ SESSIONS : contains
     QUESTIONS ||--o{ OPTIONS : contains
     SESSIONS ||--o| QUESTIONS : current_question
+    SESSIONS ||--o{ PARTICIPANTS : has
+    SESSIONS ||--o{ VOTES : has
+    PARTICIPANTS ||--o{ VOTES : casts
+    QUESTIONS ||--o{ VOTES : receives
+    OPTIONS ||--o{ VOTES : chosen_in
 
     POLLS {
         binary_id id PK
@@ -99,6 +105,24 @@ erDiagram
         utc_datetime_usec closed_at
         timestamps
     }
+
+    PARTICIPANTS {
+        binary_id id PK
+        binary_id session_id FK
+        binary_id user_id FK
+        string display_name
+        string token
+        timestamps
+    }
+
+    VOTES {
+        binary_id id PK
+        binary_id session_id FK
+        binary_id question_id FK
+        binary_id option_id FK
+        binary_id participant_id FK
+        timestamps
+    }
 ```
 
 **Position handling**: Integer columns on Question and Option. Normalized after every reorder.
@@ -119,13 +143,15 @@ PollLive.Questions
 │   └── OptionLive (×M inside each)
 
 SessionLive.Form
+SessionLive.Present   (presenter / MC, owner only: /sessions/:id/present)
+SessionLive.Join      (public participant: /join/:slug)
 ```
 
 ### Component Communication
 
 - **Parent → Child**: Assigns (`current_scope`, `poll`, `question`, `is_survey`, etc.).
 - **Child → Parent**: `send(self(), {:event_name, payload})` (e.g. `{:question_created, ...}`, `{:options_reordered, ...}`).
-- **PubSub**: `user:#{user_id}:polls` and `user:#{user_id}:sessions`.
+- **PubSub**: `user:#{user_id}:polls`, `user:#{user_id}:sessions`, and the per-room `session:#{slug}` topic (live lifecycle, question, results events, and Presence).
 - **Form handling**: `phx-change` / `phx-submit` with `to_form/1`.
 
 ---
@@ -138,7 +164,7 @@ SessionLive.Form
 |-------------|----------------------|
 | `Campaigns` | `list_polls/2`, `create_poll/2`, `duplicate_poll/2`, `archive_poll/2`, `get_poll!/2` |
 | `Polling`   | `create_question/3`, `update_question/3`, `reorder/3`, `list_questions/2`, `Search.question_body/3` |
-| `Voting`    | `create_session/3`, `close_session/2`, `reopen_session/2`, `list_sessions/2` |
+| `Voting`    | `create_session/3`, `start_session/2`, `set_current_question/3`, `close_session/2`, `reopen_session/2`, `find_or_create_participant/3`, `cast_vote/4`, `tally/2`, `get_session_by_slug/1` |
 
 ### Supporting
 
@@ -147,6 +173,9 @@ SessionLive.Form
 - **Search** — ILIKE + `distinct` + exclusion lists (used heavily by QuestionLive/OptionLive search dropdowns).
 - **Polling.Reorder** — atomic position swapping + normalization in a transaction.
 - **Voting.AccessCode** — Crockford Base32 6-char codes with separators.
+- **Voting.Tally**: pure per-option vote counting (`by_option/1`), used by the presenter results.
+- **Slidex.Presence**: `Phoenix.Presence` tracking who is in a live session (owner, logged-in user, or guest).
+- **SlidexWeb.SessionQR**: builds a session's absolute join URL and renders it as a QR code SVG.
 
 ---
 
@@ -181,8 +210,14 @@ SessionLive.Form
 
 ### 5. Archive / Close Flows
 - Archive: `Campaigns.archive_poll/2` sets `archived_at`.
-- Session close: `Voting.close_session/2` sets `closed_at`.
+- Session close: `Voting.close_session/2` stamps `closed_at` and, for a voting session, also sets `state: :ended` (a survey keeps its `:survey` state). `reopen_session/2` mirrors this back to `:active`.
 - Both broadcast via PubSub and update UI.
+
+### 6. Live Voting Session
+- The owner opens `SessionLive.Present` (`/sessions/:id/present`) and starts the session (`start_session/2`, `state: :active`). Start, Previous, Next, and End drive `set_current_question/3` and `close_session/2`, broadcasting on `session:#{slug}`.
+- Participants open `SessionLive.Join` (`/join/:slug`), receive a guest token from the `ensure_participant_token` plug, and become a `Participant` via `find_or_create_participant/3`. Public sessions admit guests; non-public sessions require login.
+- A vote calls `cast_vote/4` (single choice, a re-vote replaces) and broadcasts `{:results_updated, question_id}`.
+- The presenter recomputes `tally/2` live and reveals the correct option. `Slidex.Presence` shows who is connected on both views.
 
 ---
 
@@ -199,7 +234,8 @@ SessionLive.Form
 | Hooks                       | Colocated (`<script :type={Phoenix.LiveView.ColocatedHook}>`) | Modal + RelativeTime |
 | Auth                        | Magic link (primary) + optional password    | Modern & secure |
 | Preloading                  | Centralized `Preloader` module              | Handles sorting automatically |
-| Real-time                   | PubSub (user-scoped topics)                 | Clean multi-user support |
+| Real-time                   | PubSub (user topics + per-room `session:#{slug}`) + `Phoenix.Presence` | Owner dashboards and live sessions |
+| QR codes                    | `qr_code` SVG via `SlidexWeb.SessionQR`     | Scannable join link on the presenter |
 
 ---
 
@@ -224,10 +260,13 @@ SessionLive.Form
 
 ## 10. Open / Future Work
 
+Done in the live voting sessions work (2026-06-11): real-time participant view (`SessionLive.Join`), live vote counting and results (`SessionLive.Present`), presence, and a QR join code. See `docs/live-voting-sessions.md`.
+
+Still open:
 - Drag-and-drop reordering (SortableJS or LiveView drag events).
-- Real-time participant view (separate LiveView consuming `current_question`).
-- Access code entry page for guests.
-- Results / live vote counting LiveView.
+- Enforce `access_code` for public sessions. Today the unguessable `slug` link is the access mechanism; the code is shown but not required.
+- Participant-visible results (currently presenter only).
+- Quiz scoring or a leaderboard (currently `is_correct` is reveal only).
 - Rich question content (markdown, images).
 - Oban jobs (e.g. auto-close expired sessions).
 
@@ -235,4 +274,4 @@ SessionLive.Form
 
 **This architecture document is aligned with the current concatenated codebase (June 2026).**
 
-*Updated: 2026-06-10*
+*Updated: 2026-06-11*

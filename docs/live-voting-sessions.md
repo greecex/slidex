@@ -1,6 +1,6 @@
 # Live voting sessions
 
-**Status**: Design and build plan. Decisions resolved 2026-06-11. Not yet implemented.
+**Status**: Implemented 2026-06-11. All batches in section 5 shipped (see section 8).
 **Date**: 2026-06-11
 **Owner**: Petros (taking over from Isaak).
 
@@ -209,4 +209,15 @@ All eight questions are answered. These are binding for this version.
 
 ---
 
-*With these decisions recorded, this document plus the code is enough to implement the work batches in section 5 in order. Start with batch 1 (the foundation).*
+## 8. Implementation status (built 2026-06-11)
+
+All six batches in section 5 are built, tested, and committed. Where each landed:
+
+- Foundation (4.1): `Slidex.Voting.Participant` and `Slidex.Voting.Vote` schemas, the pure `Slidex.Voting.Tally`, and `Voting.find_or_create_participant/3`, `cast_vote/4`, `tally/2`. Migration `20260611120000_create_voting_participants_and_votes`.
+- MC flow (4.2): `Voting.start_session/2` and `set_current_question/3`; `close_session/2` and `reopen_session/2` now drive `state` (a voting session ends, a survey keeps `:survey`). Room topic via `Voting.session_topic/1` and `subscribe_session/1`. Presenter `SlidexWeb.SessionLive.Present` at `/sessions/:id/present`.
+- Join and voting (4.3, 4.4): public `SlidexWeb.SessionLive.Join` at `/join/:slug`, guest identity via the `ensure_participant_token` plug, and the public lookups `get_session_by_slug/1`, `list_session_questions/1`, `list_participant_votes/2`.
+- Presence (4.4): `Slidex.Presence` (supervised after PubSub), tracked in both views, with a live count and a role-tagged roster.
+- Live results (4.5): `cast_vote/4` broadcasts `{:results_updated, question_id}`; the presenter recomputes `tally/2` and reveals the correct option.
+- QR (4.5): `{:qr_code, "~> 3.2"}` and `SlidexWeb.SessionQR`, rendered on the presenter view next to the join URL and access code.
+
+Deferred (noted in the decisions): enforcing `access_code` for public sessions, participant-visible results, and any quiz scoring.

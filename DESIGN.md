@@ -31,7 +31,9 @@
 | `Poll`     | Campaigns | User (via Scope) | Questions, Sessions | `title`, `description`, `access_code`, `archived_at`                      | Top-level container. Supports duplication. |
 | `Question` | Polling   | Poll             | Options      | `position`, `body`                                                         | Ordered inside poll. |
 | `Option`   | Polling   | Question         | —            | `position`, `body`, `is_correct`                                           | Ordered inside question. |
-| `Session`  | Voting    | Poll             | —            | `title`, `description`, `state` (:survey/:pending/:active/:ended), `slug`, `is_public`, `access_code`, `expires_at`, `closed_at`, `show_description`, `show_poll_description`, `current_question_id` | Voting session or Survey. |
+| `Session`  | Voting    | Poll             | Participants, Votes | `title`, `description`, `state` (:survey/:pending/:active/:ended), `slug`, `is_public`, `access_code`, `expires_at`, `closed_at`, `show_description`, `show_poll_description`, `current_question_id` | Voting session or Survey. |
+| `Participant` | Voting | Session, User (optional) | Votes | `display_name`, `token` | One row per person per session. Stable identity for presence and de-duplication. Anonymous, never shown against a vote. |
+| `Vote`     | Voting    | Session, Question, Option, Participant | — | (foreign keys only) | One per participant per question (re-vote replaces). Aggregated by `Voting.Tally`. |
 
 **Ordering**:
 - Explicit `position` on Question and Option.
@@ -64,14 +66,19 @@
 - `Preloader` for ordered associations.
 
 ### Voting
-- `Session` CRUD, close/reopen.
-- PubSub for sessions.
+- `Session` CRUD, close/reopen, and the MC lifecycle (`start_session/2`, `set_current_question/3`). `state` is the source of truth.
+- `Participant` and `Vote` (single choice, anonymous), `cast_vote/4`, and the pure `Tally`.
+- Public lookups for the join page (`get_session_by_slug/1`, `list_session_questions/1`, `list_participant_votes/2`).
+- PubSub: per-owner session topic plus the per-room `session:#{slug}` topic (`session_topic/1`).
 - `AccessCode` generator (Crockford Base32).
 
 ### Supporting Modules
 - `Authorization` – ownership checks for Poll/Question/Option/Session.
 - `Preloader` – centralized preloading + sorting (questions by position, options by position).
 - `Search` – ILIKE search with exclusion lists (used by QuestionLive/OptionLive).
+- `Voting.Tally` – pure per-option vote counting (`by_option/1`).
+- `Slidex.Presence` – `Phoenix.Presence` tracking who is in a live session (owner, user, guest).
+- `SlidexWeb.SessionQR` – builds a session's absolute join URL and renders a QR code SVG.
 
 ---
 
@@ -83,6 +90,8 @@
 - **PollLive.Show**: Poll details + two-column view of **Voting sessions** and **Surveys**. Actions: edit (via form), close/reopen, delete. Add buttons navigate to SessionLive.Form.
 - **PollLive.Questions**: Dedicated page for managing questions/options (reorder, edit, search existing bodies, add options).
 - **SessionLive.Form**: Create/edit Session (kind selector: voting/survey, poll selector when creating, access code generator, expiration, is_public).
+- **SessionLive.Present**: Presenter / MC view (`/sessions/:id/present`, owner only). Start/Previous/Next/End, live results with the correct option revealed, presence count and roster, and a QR join code.
+- **SessionLive.Join**: Public participant view (`/join/:slug`). Guest or logged-in voting (single choice), presence count. Public sessions admit guests; non-public sessions require login. Results are presenter only.
 
 ### LiveComponents (self-contained where possible)
 - **QuestionLive** (in PollLive.Questions):
@@ -122,6 +131,10 @@
 | **Message passing** (`send(self(), ... )`) | Clean parent ↔ child communication. |
 | **Preloader helper**              | Central place for ordered preloads + sorting. |
 | **Full auth (magic link + optional password)** | Modern, secure login experience. |
+| **`state` is the lifecycle source of truth** | `closed_at` is just a timestamp; presenter transitions drive `state`. |
+| **Per-room PubSub + `Phoenix.Presence`** | Live sessions broadcast on `session:#{slug}`; presence shows who is connected. |
+| **Anonymous single-choice votes** | One vote per participant per question (re-vote replaces); results are aggregate counts. |
+| **QR join code (`qr_code`)** | Scannable link to the join page on the presenter view. |
 
 ---
 
@@ -168,6 +181,13 @@
 - Edit, close/reopen, delete.
 - State machine (`:survey` vs voting states).
 
+**Live voting sessions**
+- Presenter MC flow: start, advance through questions, end (`SessionLive.Present`).
+- Public join page by slug with a QR code (`SessionLive.Join`); guests allowed for public sessions.
+- Single-choice anonymous voting, one per question (re-vote replaces).
+- Live results on the presenter view with the correct option revealed.
+- Presence: a live count and roster (owner, logged-in users, guests).
+
 **UI/UX**
 - daisyUI + Tailwind.
 - Colocated hooks for modals and relative timers.
@@ -189,17 +209,19 @@ lib/slidex/
 ├── accounts/               # Full auth (User, UserToken, Scope, Notifier)
 ├── campaigns.ex + poll.ex
 ├── polling.ex + question.ex + option.ex + reorder.ex
-├── voting.ex + session.ex + access_code.ex
+├── voting.ex + session.ex + participant.ex + vote.ex + tally.ex + access_code.ex
 ├── authorization.ex
 ├── preloader.ex
 ├── search.ex
+├── presence.ex
 ├── web/
 │   ├── live/
 │   │   ├── poll_live/
 │   │   │   ├── index.ex, form.ex, show.ex, questions.ex
 │   │   │   └── components/
 │   │   │       ├── question_live.ex, option_live.ex, session_modal.ex
-│   │   └── session_live/form.ex
+│   │   └── session_live/form.ex, present.ex, join.ex
+│   ├── session_qr.ex
 │   └── components/
 │       ├── modals.ex (colocated Modal hook)
 │       ├── timers.ex (colocated RelativeTime hook)
@@ -210,4 +232,4 @@ lib/slidex/
 
 **This document reflects the current state of the concatenated codebase (June 2026).**
 
-*Updated: 2026-06-10*
+*Updated: 2026-06-11*
