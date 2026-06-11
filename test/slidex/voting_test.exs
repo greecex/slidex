@@ -221,4 +221,50 @@ defmodule Slidex.VotingTest do
       assert_raise MatchError, fn -> Voting.start_session(other_scope, session) end
     end
   end
+
+  describe "public lookups" do
+    setup do
+      scope = user_scope_fixture()
+      %{scope: scope, poll: poll_fixture(scope)}
+    end
+
+    test "get_session_by_slug returns the session with its poll", %{scope: scope, poll: poll} do
+      session = session_fixture(scope, poll)
+
+      found = Voting.get_session_by_slug(session.slug)
+      assert found.id == session.id
+      assert found.poll.id == poll.id
+    end
+
+    test "get_session_by_slug returns nil for an unknown slug" do
+      assert Voting.get_session_by_slug("does-not-exist") == nil
+    end
+
+    test "list_session_questions returns ordered questions with options", %{
+      scope: scope,
+      poll: poll
+    } do
+      session = session_fixture(scope, poll, %{state: :survey})
+      first = question_fixture(scope, poll)
+      _ = option_fixture(scope, first)
+      second = question_fixture(scope, poll)
+
+      questions = Voting.list_session_questions(session)
+      assert Enum.map(questions, & &1.id) == [first.id, second.id]
+      assert [_option | _] = hd(questions).options
+    end
+
+    test "list_participant_votes maps each question to the chosen option", %{
+      scope: scope,
+      poll: poll
+    } do
+      session = session_fixture(scope, poll, %{state: :active})
+      question = question_fixture(scope, poll)
+      option = option_fixture(scope, question)
+      participant = participant_fixture(session)
+      {:ok, _} = Voting.cast_vote(session, participant, question, option)
+
+      assert Voting.list_participant_votes(session, participant) == %{question.id => option.id}
+    end
+  end
 end

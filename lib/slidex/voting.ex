@@ -63,6 +63,16 @@ defmodule Slidex.Voting do
     |> Preloader.with_preloads()
   end
 
+  @doc """
+  Looks up a session by its public slug, with no scope. Returns nil when there
+  is no match. Used by the public join page.
+  """
+  def get_session_by_slug(slug) when is_binary(slug) do
+    Session
+    |> Repo.get_by(slug: slug)
+    |> Preloader.with_preloads()
+  end
+
   def create_session(%Scope{} = scope, %Poll{} = poll, attrs) do
     :ok = authorize(scope, poll)
 
@@ -223,6 +233,32 @@ defmodule Slidex.Voting do
     |> where([v], v.session_id == ^session.id and v.question_id == ^question.id)
     |> Repo.all()
     |> Tally.by_option()
+  end
+
+  @doc """
+  Lists a session's poll questions with their options, with no scope. Used by
+  the public join page for surveys, which show every question at once.
+  """
+  def list_session_questions(%Session{} = session) do
+    options_query = from(o in Option, order_by: [asc: o.position, asc: o.inserted_at])
+
+    Question
+    |> where([q], q.poll_id == ^session.poll_id)
+    |> order_by([q], asc: q.position, asc: q.inserted_at)
+    |> preload(options: ^options_query)
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns the participant's current choice per question as a map of
+  `question_id => option_id`.
+  """
+  def list_participant_votes(%Session{} = session, %Participant{} = participant) do
+    Vote
+    |> where([v], v.session_id == ^session.id and v.participant_id == ^participant.id)
+    |> select([v], {v.question_id, v.option_id})
+    |> Repo.all()
+    |> Map.new()
   end
 
   defp ensure_votable(%Session{state: state, closed_at: nil}) when state in [:active, :survey],
