@@ -82,7 +82,23 @@ defmodule SlidexWeb.SessionLive.Present do
                   :for={option <- @session.current_question.options}
                   class="rounded-lg border border-base-300 bg-base-100 p-3"
                 >
-                  {option.body}
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="font-medium">
+                      {option.body}
+                      <span :if={option.is_correct} class="badge badge-success badge-sm">
+                        Correct
+                      </span>
+                    </span>
+                    <span class="text-sm text-base-content/70">
+                      {count(@tally, option.id)} ({percentage(@tally, option.id)}%)
+                    </span>
+                  </div>
+                  <progress
+                    class="progress progress-primary mt-2 w-full"
+                    value={percentage(@tally, option.id)}
+                    max="100"
+                  >
+                  </progress>
                 </li>
               </ul>
             </div>
@@ -127,6 +143,10 @@ defmodule SlidexWeb.SessionLive.Present do
     {:noreply, refresh(socket)}
   end
 
+  def handle_info({:results_updated, _question_id}, socket) do
+    {:noreply, assign_tally(socket)}
+  end
+
   def handle_info(_message, socket), do: {:noreply, socket}
 
   defp move_question(socket, delta) do
@@ -163,6 +183,26 @@ defmodule SlidexWeb.SessionLive.Present do
     |> assign(:questions, questions)
     |> assign(:current_index, current_index(session, questions))
     |> assign(:page_title, session.title)
+    |> assign_tally()
+  end
+
+  defp assign_tally(socket) do
+    session = socket.assigns.session
+
+    tally =
+      case session.current_question do
+        %{} = question -> Voting.tally(session, question)
+        _ -> %{}
+      end
+
+    assign(socket, :tally, tally)
+  end
+
+  defp count(tally, option_id), do: Map.get(tally, option_id, 0)
+
+  defp percentage(tally, option_id) do
+    total = tally |> Map.values() |> Enum.sum()
+    if total > 0, do: round(count(tally, option_id) / total * 100), else: 0
   end
 
   defp current_index(%{current_question_id: nil}, _questions), do: nil

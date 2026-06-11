@@ -212,19 +212,22 @@ defmodule Slidex.Voting do
       ) do
     with :ok <- ensure_votable(session),
          :ok <- ensure_question_in_session(session, question),
-         :ok <- ensure_option_in_question(question, option) do
-      %Vote{
-        session_id: session.id,
-        question_id: question.id,
-        option_id: option.id,
-        participant_id: participant.id
-      }
-      |> Vote.changeset()
-      |> Repo.insert(
-        on_conflict: {:replace, [:option_id, :updated_at]},
-        conflict_target: [:session_id, :question_id, :participant_id],
-        returning: true
-      )
+         :ok <- ensure_option_in_question(question, option),
+         {:ok, vote} <-
+           %Vote{
+             session_id: session.id,
+             question_id: question.id,
+             option_id: option.id,
+             participant_id: participant.id
+           }
+           |> Vote.changeset()
+           |> Repo.insert(
+             on_conflict: {:replace, [:option_id, :updated_at]},
+             conflict_target: [:session_id, :question_id, :participant_id],
+             returning: true
+           ) do
+      broadcast_to_session(session, {:results_updated, question.id})
+      {:ok, vote}
     end
   end
 

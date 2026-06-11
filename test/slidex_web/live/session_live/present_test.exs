@@ -6,16 +6,18 @@ defmodule SlidexWeb.SessionLive.PresentTest do
   import Slidex.PollingFixtures
   import Slidex.VotingFixtures
 
+  alias Slidex.Voting
+
   setup :register_and_log_in_user
 
   setup %{scope: scope} do
     poll = poll_fixture(scope)
     first = question_fixture(scope, poll)
     second = question_fixture(scope, poll)
-    _ = option_fixture(scope, first)
+    option = option_fixture(scope, first)
 
     session = session_fixture(scope, poll, %{state: :pending})
-    %{session: session, first: first, second: second}
+    %{session: session, first: first, second: second, option: option}
   end
 
   test "starts the session and shows the first question", %{
@@ -51,5 +53,22 @@ defmodule SlidexWeb.SessionLive.PresentTest do
     lv |> element("#end-session") |> render_click()
 
     assert render(lv) =~ "ended"
+  end
+
+  test "shows live results as votes come in", %{
+    conn: conn,
+    scope: scope,
+    session: session,
+    first: first,
+    option: option
+  } do
+    {:ok, lv, _html} = live(conn, ~p"/sessions/#{session}/present")
+    lv |> element("#start-session") |> render_click()
+
+    started = Voting.get_session!(scope, session.id)
+    {:ok, participant} = Voting.find_or_create_participant(started, "voter-1")
+    {:ok, _vote} = Voting.cast_vote(started, participant, first, option)
+
+    assert render(lv) =~ "100%"
   end
 end
