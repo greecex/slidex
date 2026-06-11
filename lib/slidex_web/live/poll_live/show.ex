@@ -134,14 +134,6 @@ defmodule SlidexWeb.PollLive.Show do
           <.icon name="hero-eye" class="size-5 text-info" />
         </div>
 
-        <div
-          :if={!is_nil(@session.access_code)}
-          class="tooltip tooltip-sm"
-          data-tip="Requires access code for participation"
-        >
-          <.icon name="hero-lock-closed" class="size-5" />
-        </div>
-
         <%= if @session.expires_at do %>
           <span class="text-xs">
             <Timers.expires_at datetime={@session.expires_at} />
