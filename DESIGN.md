@@ -177,17 +177,17 @@
 - Empty states + helpful buttons.
 
 **Sessions** (Voting + Surveys)
-- Create via dedicated form (kind selector, access code generator, expiration, is_public).
+- Create via dedicated form (kind selector, optional access code (not enforced yet), expiration, is_public).
 - List in PollLive.Show (separate columns).
 - Edit, close/reopen, delete.
 - State machine (`:survey` vs voting states).
 
 **Live voting sessions**
 - Presenter MC flow: start, advance through questions, end (`SessionLive.Present`).
-- Public join page by slug with a QR code (`SessionLive.Join`); guests allowed for public sessions.
+- Public join page by slug with a QR code (`SessionLive.Join`); guests allowed for public sessions. Copy a session's join link from the poll page to share it (the main way to share a survey).
 - Single-choice anonymous voting, one per question (re-vote replaces).
-- Live results on the presenter view with the correct option revealed.
-- Presence: a live count and roster (owner, logged-in users, guests).
+- Live results on the presenter view with the correct option revealed. Final results are shown to participants on the join page after a session ends, and to the owner anytime via `SessionLive.Results`.
+- Presence: a live count, plus a roster that lists named people (owner, logged-in users) and sums anonymous guests into a count.
 
 **UI/UX**
 - daisyUI + Tailwind.

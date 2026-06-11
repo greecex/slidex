@@ -31,7 +31,7 @@ Four features, one coherent experience:
 3. **Vote tracking** plus an optional **live display of votes** (results).
 4. A **join page** for a `Voting.Session`, with an optional **QR code** linking to it (use `{:qr_code, "~> 3.2"}`).
 
-The target user story: an owner opens a session in present mode on the projector. The screen shows an access code, a join URL, and a QR code. People in the room scan or type the link, optionally enter a name, and land on a participant screen. The presenter advances to a question; everyone's screen shows it; people vote; the presenter (and optionally the participants) watch the tally update live. Presence shows how many people are connected. The presenter advances to the next question, and so on, then ends the session.
+The target user story: an owner opens a session in present mode on the projector. The screen shows a join URL and a QR code. People in the room scan or type the link and land on a participant screen. The presenter advances to a question; everyone's screen shows it; people vote; the presenter (and optionally the participants) watch the tally update live. Presence shows how many people are connected. The presenter advances to the next question, and so on, then ends the session.
 
 Note on surveys: a `Session` with `state: :survey` is self paced. It has no presenter advancing questions. It should share the participant and vote model, but skip the MC flow. Treat surveys as "all questions available at once, vote any time until closed."
 
@@ -99,7 +99,7 @@ Add a room topic keyed by the public slug: `"session:#{session.slug}"`. Presente
 Add `Slidex.Presence` using `Phoenix.Presence`, `pubsub_server: Slidex.PubSub`, and add it to the supervision tree after PubSub. Track in the presenter and participant LiveViews on mount when `connected?`. Presence metas carry `display_name`, `role` (`:owner` or `:guest` or `:user`), and `joined_at`. Topic is the same `"session:#{slug}"`.
 
 ### 3.6 Public access and the join page (Decided: slug link, defer the code)
-Add public routes in a `live_session` that mounts the current scope but does not require authentication (mirror the existing `:current_user` block, or add a dedicated one). Join route: `live "/join/:slug", SessionLive.Join`. For this version the unguessable `slug` is the access mechanism, so there is no access code prompt. `is_public` still gates who may join: a public session admits guests, while a non public session requires the visitor to be logged in (a guest is sent to log in and returned). The `access_code` is displayed by the presenter but not enforced yet. Enforcing it later, only for public sessions, is the owner's stated preference and is left as a refinement.
+Add public routes in a `live_session` that mounts the current scope but does not require authentication (mirror the existing `:current_user` block, or add a dedicated one). Join route: `live "/join/:slug", SessionLive.Join`. For this version the unguessable `slug` is the access mechanism, so there is no access code prompt. `is_public` still gates who may join: a public session admits guests, while a non public session requires the visitor to be logged in (a guest is sent to log in and returned). The `access_code` can be set in the session form but is not enforced yet, and it is not shown to participants or on the presenter. Enforcing it later, only for public sessions, is the owner's stated preference and is left as a refinement.
 
 ### 3.7 Quiz semantics and is_correct (Decided: reveal only)
 `Option.is_correct` exists and is shown in the editor, but nothing consumes it. Decision: after a question ends, the results reveal the correct option or options (highlight those marked correct). There is no scoring and no leaderboard in this version. Live results are presenter only (see 4.5); once the session ends, the final results, including the correct-option reveal, are shown to participants too.
@@ -130,7 +130,7 @@ Each feature lists its goal, data, context functions, web layer, real time, auth
 
 **Context.** `start_session/2`, `end_session/2`, `set_current_question/3` (and optionally `advance_session/2` and `previous_question/2`). All take `%Scope{}` and authorize against the poll owner. Each transition broadcasts on `"session:#{slug}"` and on the owner topic. Reconcile `state` and `closed_at` per 3.3.
 
-**Web.** A presenter LiveView, for example `SlidexWeb.SessionLive.Present` at `live "/sessions/:id/present", SessionLive.Present` inside the authenticated `live_session`. It shows the current question and options, presence count, the access code, the join URL, the QR code (4.5, 6), and controls: start, next, previous, end. It subscribes to the room topic and re-renders on broadcasts.
+**Web.** A presenter LiveView, for example `SlidexWeb.SessionLive.Present` at `live "/sessions/:id/present", SessionLive.Present` inside the authenticated `live_session`. It shows the current question and options, presence count, the join URL, the QR code (4.5, 6), and controls: start, next, previous, end. It subscribes to the room topic and re-renders on broadcasts.
 
 **Authorization.** Presenter actions are owner only. Reuse `authorize/2`.
 
@@ -161,7 +161,7 @@ Each feature lists its goal, data, context functions, web layer, real time, auth
 
 **Goal (QR).** A scannable code on the presenter and share views that encodes the absolute join URL.
 
-**Web (QR).** Add `{:qr_code, "~> 3.2"}` to `mix.exs` and run `mix deps.get`. Generate an SVG from `url(~p"/join/#{session.slug}")` and render it next to the access code and join URL. Keep generation in a small helper so it is easy to test the URL it encodes. QR rendering is a static SVG; no hook needed.
+**Web (QR).** Add `{:qr_code, "~> 3.2"}` to `mix.exs` and run `mix deps.get`. Generate an SVG from `url(~p"/join/#{session.slug}")` and render it next to the join URL. Keep generation in a small helper so it is easy to test the URL it encodes. QR rendering is a static SVG; no hook needed.
 
 **Tests.** Pure tests for the tally and for the helper that builds the join URL. Minimal LiveView assertion that the results region and the QR image are present.
 
@@ -183,7 +183,7 @@ Presence (4) can move earlier if the owner wants a "people are here" feel before
 
 ## 6. Conventions checklist
 
-- Scope and authorization first. Owner mutations take `%Scope{}` and call `authorize/2`. Participant and guest paths are public and gate only on `is_public` and `access_code`.
+- Scope and authorization first. Owner mutations take `%Scope{}` and call `authorize/2`. Participant and guest paths are public and gate only on `is_public`; the unguessable slug is the access mechanism and `access_code` is not enforced.
 - Programmatic fields (`slug`, `token`, foreign keys, `state`) are set on the struct, not listed in `cast`. See the existing `Voting.Session.put_slug/1` and the `next_position/3` helper in `Slidex.Polling` for the pattern.
 - Binary id primary keys and `@foreign_key_type :binary_id` on every new schema. Primary keys are UUIDv4; ULID is used only for the session `slug`.
 - Pure functions first. Put tally and any non trivial logic in pure functions with doctests. LiveViews hold presentation only. See `docs/testing-posture.md`.
@@ -218,6 +218,8 @@ All six batches in section 5 are built, tested, and committed. Where each landed
 - Join and voting (4.3, 4.4): public `SlidexWeb.SessionLive.Join` at `/join/:slug`, guest identity via the `ensure_participant_token` plug, and the public lookups `get_session_by_slug/1`, `list_session_questions/1`, `list_participant_votes/2`.
 - Presence (4.4): `Slidex.Presence` (supervised after PubSub), tracked in both views, with a live count and a role-tagged roster.
 - Live results (4.5): `cast_vote/4` broadcasts `{:results_updated, question_id}`; the presenter recomputes `tally/2` and reveals the correct option. Participants see the final results on the join page once the session ends (`tally_by_question/1`).
-- QR (4.5): `{:qr_code, "~> 3.2"}` and `SlidexWeb.SessionQR`, rendered on the presenter view next to the join URL and access code.
+- QR (4.5): `{:qr_code, "~> 3.2"}` and `SlidexWeb.SessionQR`, rendered on the presenter view next to the join URL.
+
+Beyond the original plan: an owner-facing results view (`SlidexWeb.SessionLive.Results` at `/sessions/:id/results`, live updating), a Copy link action on the poll's session list, a collapsible presenter join card, and final results shown to participants after a session ends. The `access_code` stays settable in the session form (marked "not enforced yet") but was removed from the presenter and the poll listing, since joining does not check it.
 
 Deferred (noted in the decisions): enforcing `access_code` for public sessions, live results for participants during voting (the final results are shown after the session ends), and quiz scoring.

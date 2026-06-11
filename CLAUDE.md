@@ -8,7 +8,7 @@ Authenticated users (magic link, optional password) author and manage polls. The
 
 - **Campaigns**: polls and their lifecycle (create, edit, duplicate, archive, delete).
 - **Polling**: ordered questions and options within a poll, with manual reordering and a correct-answer flag for quiz-style questions.
-- **Voting**: voting sessions and surveys created from a poll, each with an access code, public or private visibility, optional expiration, and a close/reopen lifecycle.
+- **Voting**: voting sessions and surveys created from a poll, each with an optional access code, public or private visibility, optional expiration, and a close/reopen lifecycle.
 
 The owner-facing authoring and session management is built, and so is the participant-facing live voting experience: a public join page (by slug, with a QR code), single-choice voting, presence, presenter-side live results, and final results shown to participants after the session ends. See [docs/live-voting-sessions.md](docs/live-voting-sessions.md). Deferred for later: enforcing the access code for public sessions, live results for participants during voting, and quiz scoring.
 

@@ -219,6 +219,8 @@ SessionLive.Join      (public participant: /join/:slug)
 - Participants open `SessionLive.Join` (`/join/:slug`), receive a guest token from the `ensure_participant_token` plug, and become a `Participant` via `find_or_create_participant/3`. Public sessions admit guests; non-public sessions require login.
 - A vote calls `cast_vote/4` (single choice, a re-vote replaces) and broadcasts `{:results_updated, question_id}`.
 - The presenter recomputes `tally/2` live and reveals the correct option. `Slidex.Presence` shows who is connected on both views.
+- The owner can copy a session's join link from `PollLive.Show` and review its tally any time via `SessionLive.Results` (`/sessions/:id/results`), which also updates live (handy for surveys, which have no presenter).
+- After the session ends the presenter keeps the final results on screen, and participants see them on the join page.
 
 ---
 
@@ -265,7 +267,7 @@ Done in the live voting sessions work (2026-06-11): real-time participant view (
 
 Still open:
 - Drag-and-drop reordering (SortableJS or LiveView drag events).
-- Enforce `access_code` for public sessions. Today the unguessable `slug` link is the access mechanism; the code is shown but not required.
+- Enforce `access_code` for public sessions. Today the unguessable `slug` link is the access mechanism; the code can be set in the session form (marked not enforced), but it is not shown to participants or checked at join.
 - Live results for participants during voting. Today the final results are shown to participants once the session ends; live tallies stay presenter only.
 - Quiz scoring or a leaderboard (currently `is_correct` is reveal only).
 - Rich question content (markdown, images).
