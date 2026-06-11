@@ -17,6 +17,10 @@ defmodule SlidexWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :participant do
+    plug :ensure_participant_token
+  end
+
   scope "/", SlidexWeb do
     pipe_through :browser
 
@@ -81,5 +85,18 @@ defmodule SlidexWeb.Router do
 
     post "/users/log-in", UserSessionController, :create
     delete "/users/log-out", UserSessionController, :delete
+  end
+
+  ## Public participant routes
+  # Mounts the current scope without requiring auth, so guests can join public
+  # sessions. The :participant pipeline ensures a stable anonymous voter token.
+
+  scope "/", SlidexWeb do
+    pipe_through [:browser, :participant]
+
+    live_session :participant,
+      on_mount: [{SlidexWeb.UserAuth, :mount_current_scope}] do
+      live "/join/:slug", SessionLive.Join, :join
+    end
   end
 end

@@ -27,6 +27,19 @@ defmodule SlidexWeb.UserAuth do
   @session_reissue_age_in_days 7
 
   @doc """
+  Ensures a stable anonymous participant token in the session.
+
+  Used to identify voters, including guests, within a voting session.
+  """
+  def ensure_participant_token(conn, _opts) do
+    if get_session(conn, "participant_token") do
+      conn
+    else
+      put_session(conn, "participant_token", Base.url_encode64(:crypto.strong_rand_bytes(16)))
+    end
+  end
+
+  @doc """
   Logs the user in.
 
   Redirects to the session's `:user_return_to` path
