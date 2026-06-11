@@ -112,7 +112,7 @@ defmodule SlidexWeb.PollLive.Show do
           {@session.description}
         </div>
         <div class="text-xs text-base-content/60 mt-1">
-          {status_label(@session)}
+          {Voting.Session.status_label(@session)}
         </div>
         <div
           :if={@session.closed_at}
@@ -247,11 +247,6 @@ defmodule SlidexWeb.PollLive.Show do
     </script>
     """
   end
-
-  # state drives the lifecycle (pending/active/ended); a survey keeps :survey
-  # and is shown as Closed once closed_at is set.
-  defp status_label(%{state: :survey, closed_at: %DateTime{}}), do: "Closed"
-  defp status_label(%{state: state}), do: String.capitalize(to_string(state))
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do

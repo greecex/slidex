@@ -11,6 +11,7 @@ defmodule SlidexWeb.SessionLive.Join do
   use SlidexWeb, :live_view
 
   alias Slidex.{Presence, Voting}
+  alias SlidexWeb.Components.Results
 
   @impl true
   def render(assigns) do
@@ -29,42 +30,13 @@ defmodule SlidexWeb.SessionLive.Join do
       <%= cond do %>
         <% @closed -> %>
           <p class="mt-6 text-base-content/70">This session has ended.</p>
-          <div :for={question <- @results} id={"result-#{question.id}"} class="mt-8 space-y-3">
-            <h2 class="text-xl font-semibold">{question.body}</h2>
-            <ul class="space-y-2">
-              <li
-                :for={option <- question.options}
-                class="rounded-lg border border-base-300 bg-base-100 p-3"
-              >
-                <div class="flex items-center justify-between gap-2">
-                  <span class="font-medium">
-                    {option.body}
-                    <span :if={option.is_correct} class="badge badge-success badge-sm">
-                      Correct
-                    </span>
-                    <span
-                      :if={@votes[question.id] == option.id}
-                      class="badge badge-primary badge-sm"
-                    >
-                      Your vote
-                    </span>
-                  </span>
-                  <span class="text-sm text-base-content/70">
-                    {result_count(@tallies, question.id, option.id)} ({result_pct(
-                      @tallies,
-                      question.id,
-                      option.id
-                    )}%)
-                  </span>
-                </div>
-                <progress
-                  class="progress progress-primary mt-2 w-full"
-                  value={result_pct(@tallies, question.id, option.id)}
-                  max="100"
-                >
-                </progress>
-              </li>
-            </ul>
+          <div class="mt-8 space-y-8">
+            <Results.question_results
+              :for={question <- @results}
+              question={question}
+              tally={Map.get(@tallies, question.id, %{})}
+              my_vote={@votes[question.id]}
+            />
           </div>
         <% @questions == [] -> %>
           <p class="mt-6 text-base-content/70">Waiting for the host to start the session...</p>
@@ -230,14 +202,4 @@ defmodule SlidexWeb.SessionLive.Join do
 
   defp participant_role(%{user: %_{}}), do: :user
   defp participant_role(_scope), do: :guest
-
-  defp result_count(tallies, question_id, option_id) do
-    tallies |> Map.get(question_id, %{}) |> Map.get(option_id, 0)
-  end
-
-  defp result_pct(tallies, question_id, option_id) do
-    tally = Map.get(tallies, question_id, %{})
-    total = tally |> Map.values() |> Enum.sum()
-    if total > 0, do: round(result_count(tallies, question_id, option_id) / total * 100), else: 0
-  end
 end

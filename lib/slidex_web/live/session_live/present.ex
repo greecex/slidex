@@ -9,6 +9,7 @@ defmodule SlidexWeb.SessionLive.Present do
   use SlidexWeb, :live_view
 
   alias Slidex.{Polling, Presence, Voting}
+  alias Slidex.Voting.{Session, Tally}
   alias SlidexWeb.SessionQR
 
   @impl true
@@ -26,7 +27,7 @@ defmodule SlidexWeb.SessionLive.Present do
       </.header>
 
       <div class="flex flex-wrap items-center gap-3">
-        <div class="badge badge-neutral badge-lg">{status_label(@session)}</div>
+        <div class="badge badge-neutral badge-lg">{Session.status_label(@session)}</div>
         <div id="presence-count" class="badge badge-ghost badge-lg gap-1">
           <.icon name="hero-users" class="size-4" /> {length(@roster.named) + @roster.guests} here
         </div>
@@ -150,12 +151,12 @@ defmodule SlidexWeb.SessionLive.Present do
                       </span>
                     </span>
                     <span class="text-lg text-base-content/70">
-                      {count(@tally, option.id)} ({percentage(@tally, option.id)}%)
+                      {Tally.count(@tally, option.id)} ({Tally.percentage(@tally, option.id)}%)
                     </span>
                   </div>
                   <progress
                     class="progress progress-primary mt-2 h-4 w-full"
-                    value={percentage(@tally, option.id)}
+                    value={Tally.percentage(@tally, option.id)}
                     max="100"
                   >
                   </progress>
@@ -311,20 +312,10 @@ defmodule SlidexWeb.SessionLive.Present do
   defp guests_label(1), do: "1 guest"
   defp guests_label(count), do: "#{count} guests"
 
-  defp count(tally, option_id), do: Map.get(tally, option_id, 0)
-
-  defp percentage(tally, option_id) do
-    total = tally |> Map.values() |> Enum.sum()
-    if total > 0, do: round(count(tally, option_id) / total * 100), else: 0
-  end
-
   defp current_index(%{current_question_id: nil}, _questions), do: nil
 
   defp current_index(%{current_question_id: id}, questions),
     do: Enum.find_index(questions, &(&1.id == id))
 
   defp clamp(value, low, high), do: value |> max(low) |> min(high)
-
-  defp status_label(%{state: :survey, closed_at: %DateTime{}}), do: "Closed"
-  defp status_label(%{state: state}), do: String.capitalize(to_string(state))
 end

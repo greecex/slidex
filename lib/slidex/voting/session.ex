@@ -27,6 +27,24 @@ defmodule Slidex.Voting.Session do
     timestamps(type: :utc_datetime_usec)
   end
 
+  @doc """
+  A human label for the session's status.
+
+  A survey stays a survey, so it reads "Closed" once `closed_at` is set;
+  otherwise the label is the capitalized state.
+
+  ## Examples
+
+      iex> Slidex.Voting.Session.status_label(%Slidex.Voting.Session{state: :active})
+      "Active"
+
+      iex> Slidex.Voting.Session.status_label(%Slidex.Voting.Session{state: :survey, closed_at: ~U[2026-06-11 00:00:00Z]})
+      "Closed"
+
+  """
+  def status_label(%__MODULE__{state: :survey, closed_at: %DateTime{}}), do: "Closed"
+  def status_label(%__MODULE__{state: state}), do: String.capitalize(to_string(state))
+
   @doc false
   def changeset(session, attrs) do
     permitted = __MODULE__.__schema__(:fields) -- [:inserted_at, :updated_at]
