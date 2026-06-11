@@ -28,16 +28,23 @@ defmodule SlidexWeb.SessionLive.Present do
       <div class="flex flex-wrap items-center gap-3">
         <div class="badge badge-neutral badge-lg">{status_label(@session)}</div>
         <div id="presence-count" class="badge badge-ghost badge-lg gap-1">
-          <.icon name="hero-users" class="size-4" /> {length(@present)} here
+          <.icon name="hero-users" class="size-4" /> {length(@roster.named) + @roster.guests} here
         </div>
       </div>
 
-      <div :if={@present != []} id="presence-roster" class="mt-3 flex flex-wrap gap-2">
+      <div
+        :if={@roster.named != [] or @roster.guests > 0}
+        id="presence-roster"
+        class="mt-3 flex flex-wrap gap-2"
+      >
         <span
-          :for={person <- @present}
+          :for={person <- @roster.named}
           class={["badge badge-sm", role_badge_class(person.role)]}
         >
           {person_name(person)}
+        </span>
+        <span :if={@roster.guests > 0} class="badge badge-sm badge-ghost">
+          {guests_label(@roster.guests)}
         </span>
       </div>
 
@@ -149,7 +156,7 @@ defmodule SlidexWeb.SessionLive.Present do
 
     socket =
       socket
-      |> assign(:present, [])
+      |> assign(:roster, %{named: [], guests: 0})
       |> assign(:join_url, SessionQR.join_url(session))
       |> assign(:qr_svg, SessionQR.svg(session))
       |> assign_session(session, questions)
@@ -252,7 +259,8 @@ defmodule SlidexWeb.SessionLive.Present do
   end
 
   defp assign_presence(socket) do
-    assign(socket, :present, Presence.list_present(Voting.session_topic(socket.assigns.session)))
+    roster = Presence.list_present(Voting.session_topic(socket.assigns.session))
+    assign(socket, :roster, Presence.summary(roster))
   end
 
   defp owner_meta(scope) do
@@ -270,6 +278,9 @@ defmodule SlidexWeb.SessionLive.Present do
   defp role_badge_class(:owner), do: "badge-primary"
   defp role_badge_class(:user), do: "badge-info"
   defp role_badge_class(_role), do: "badge-ghost"
+
+  defp guests_label(1), do: "1 guest"
+  defp guests_label(count), do: "#{count} guests"
 
   defp count(tally, option_id), do: Map.get(tally, option_id, 0)
 

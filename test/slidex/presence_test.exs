@@ -27,4 +27,28 @@ defmodule Slidex.PresenceTest do
       assert Slidex.Presence.roster(%{}) == []
     end
   end
+
+  describe "summary/1" do
+    test "lists named people and collapses guests into a count" do
+      roster = [
+        %{display_name: "Ada", role: :owner},
+        %{display_name: "Boris", role: :user},
+        %{display_name: nil, role: :guest},
+        %{display_name: nil, role: :guest},
+        %{display_name: nil, role: :guest}
+      ]
+
+      assert Slidex.Presence.summary(roster) == %{
+               named: [
+                 %{display_name: "Ada", role: :owner},
+                 %{display_name: "Boris", role: :user}
+               ],
+               guests: 3
+             }
+    end
+
+    test "is empty for an empty roster" do
+      assert Slidex.Presence.summary([]) == %{named: [], guests: 0}
+    end
+  end
 end

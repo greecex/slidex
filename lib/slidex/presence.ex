@@ -46,4 +46,27 @@ defmodule Slidex.Presence do
     |> Enum.sort_by(& &1.joined_at)
     |> Enum.map(&%{display_name: &1.display_name, role: &1.role})
   end
+
+  @doc """
+  Splits a roster (from `roster/1`) into named people and a count of anonymous
+  guests, for a compact presence display.
+
+  Owners and logged in users are returned individually under `:named`, in join
+  order; everyone with the `:guest` role collapses into the `:guests` count, so
+  a room with many guests stays readable.
+
+  ## Examples
+
+      iex> Slidex.Presence.summary([
+      ...>   %{display_name: "Ada", role: :owner},
+      ...>   %{display_name: "Boris", role: :user},
+      ...>   %{display_name: nil, role: :guest},
+      ...>   %{display_name: nil, role: :guest}
+      ...> ])
+      %{guests: 2, named: [%{display_name: "Ada", role: :owner}, %{display_name: "Boris", role: :user}]}
+  """
+  def summary(roster) when is_list(roster) do
+    {guests, named} = Enum.split_with(roster, &(&1.role == :guest))
+    %{named: named, guests: length(guests)}
+  end
 end
