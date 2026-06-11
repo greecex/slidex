@@ -22,15 +22,28 @@ defmodule Slidex.Voting do
   end
 
   @doc """
+  The public room topic for a session, keyed by its unguessable slug.
+
+  Used for live lifecycle, question, and results events, and as the presence
+  topic. Keyed by the slug (not the internal id) so guests never need the id.
+
+  ## Examples
+
+      iex> Slidex.Voting.session_topic(%Slidex.Voting.Session{slug: "abc"})
+      "session:abc"
+  """
+  def session_topic(%Session{slug: slug}), do: "session:#{slug}"
+
+  @doc """
   Subscribes to the public room topic for a session, used by the presenter and
   participants for live lifecycle, question, and results events.
   """
-  def subscribe_session(%Session{slug: slug}) do
-    Phoenix.PubSub.subscribe(Slidex.PubSub, "session:#{slug}")
+  def subscribe_session(%Session{} = session) do
+    Phoenix.PubSub.subscribe(Slidex.PubSub, session_topic(session))
   end
 
-  defp broadcast_to_session(%Session{slug: slug}, message) do
-    Phoenix.PubSub.broadcast(Slidex.PubSub, "session:#{slug}", message)
+  defp broadcast_to_session(%Session{} = session, message) do
+    Phoenix.PubSub.broadcast(Slidex.PubSub, session_topic(session), message)
   end
 
   def list_sessions(%Scope{} = scope) do

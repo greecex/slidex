@@ -9,6 +9,7 @@ defmodule Slidex.VotingTest do
   import Slidex.PollingFixtures
   import Slidex.VotingFixtures
 
+  doctest Slidex.Voting, only: [session_topic: 1]
   doctest Slidex.Voting.Tally
 
   describe "find_or_create_participant/3" do
