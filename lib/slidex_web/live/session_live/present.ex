@@ -110,29 +110,29 @@ defmodule SlidexWeb.SessionLive.Present do
           <% @session.state == :ended -> %>
             <p class="text-base-content/70">This session has ended.</p>
           <% @session.current_question -> %>
-            <div id="current-question" class="space-y-3">
-              <div class="text-sm text-base-content/60">
+            <div id="current-question" class="space-y-4">
+              <div class="text-base text-base-content/60">
                 Question {(@current_index || 0) + 1} of {length(@questions)}
               </div>
-              <h2 class="text-2xl font-semibold">{@session.current_question.body}</h2>
-              <ul class="space-y-2">
+              <h2 class="text-3xl font-semibold">{@session.current_question.body}</h2>
+              <ul class="space-y-3">
                 <li
                   :for={option <- @session.current_question.options}
-                  class="rounded-lg border border-base-300 bg-base-100 p-3"
+                  class="rounded-lg border border-base-300 bg-base-100 p-4"
                 >
                   <div class="flex items-center justify-between gap-2">
-                    <span class="font-medium">
+                    <span class="text-xl font-medium">
                       {option.body}
-                      <span :if={option.is_correct} class="badge badge-success badge-sm">
+                      <span :if={option.is_correct} class="badge badge-success">
                         Correct
                       </span>
                     </span>
-                    <span class="text-sm text-base-content/70">
+                    <span class="text-lg text-base-content/70">
                       {count(@tally, option.id)} ({percentage(@tally, option.id)}%)
                     </span>
                   </div>
                   <progress
-                    class="progress progress-primary mt-2 w-full"
+                    class="progress progress-primary mt-2 h-4 w-full"
                     value={percentage(@tally, option.id)}
                     max="100"
                   >
