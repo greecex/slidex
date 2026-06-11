@@ -5,6 +5,7 @@ defmodule SlidexWeb.PollLive.Show do
   alias Slidex.Campaigns.Poll
   alias Slidex.Repo
   alias SlidexWeb.Components.Timers
+  alias SlidexWeb.SessionQR
 
   @impl true
   def render(assigns) do
@@ -156,6 +157,18 @@ defmodule SlidexWeb.PollLive.Show do
           tabindex="-1"
           class="dropdown-content menu bg-base-100 rounded-box z-1 w-42 p-2 shadow-sm gap-y-2"
         >
+          <li>
+            <button
+              type="button"
+              id={"copy-link-#{@session.id}"}
+              phx-hook=".CopyLink"
+              data-url={SessionQR.join_url(@session)}
+              class="btn btn-soft btn-neutral justify-start"
+            >
+              <.icon name="hero-link" /> <span class="copy-label">Copy link</span>
+            </button>
+          </li>
+
           <li :if={@session.state != :survey}>
             <.button
               navigate={~p"/sessions/#{@session}/present"}
@@ -214,6 +227,23 @@ defmodule SlidexWeb.PollLive.Show do
         </ul>
       </div>
     </div>
+
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".CopyLink">
+      export default {
+        mounted() {
+          this.el.addEventListener("click", () => {
+            const url = this.el.dataset.url;
+            const label = this.el.querySelector(".copy-label");
+            navigator.clipboard.writeText(url).then(() => {
+              if (!label) return;
+              const original = label.textContent;
+              label.textContent = "Copied!";
+              setTimeout(() => { label.textContent = original; }, 1500);
+            }).catch(() => {});
+          });
+        }
+      }
+    </script>
     """
   end
 

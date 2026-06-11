@@ -3,6 +3,7 @@ defmodule SlidexWeb.PollLiveTest do
 
   import Phoenix.LiveViewTest
   import Slidex.CampaignsFixtures
+  import Slidex.VotingFixtures
 
   setup :register_and_log_in_user
 
@@ -23,6 +24,18 @@ defmodule SlidexWeb.PollLiveTest do
       {:ok, _show_live, html} = live(conn, ~p"/polls/#{poll}")
 
       assert html =~ poll.title
+    end
+
+    test "offers a copy join link for each session", %{conn: conn, scope: scope} do
+      poll = poll_fixture(scope)
+      session = session_fixture(scope, poll)
+
+      {:ok, show_live, _html} = live(conn, ~p"/polls/#{poll}")
+
+      assert has_element?(
+               show_live,
+               ~s|#copy-link-#{session.id}[data-url$="/join/#{session.slug}"]|
+             )
     end
   end
 
