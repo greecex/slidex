@@ -13,6 +13,17 @@ defmodule Slidex.Release do
     end
   end
 
+  # Seeds the database by evaluating priv/repo/seeds.exs. Idempotent.
+  # Run once after the first deploy: bin/slidex eval "Slidex.Release.seed()"
+  def seed do
+    load_app()
+
+    {:ok, _, _} =
+      Ecto.Migrator.with_repo(Slidex.Repo, fn _repo ->
+        Code.eval_file(Application.app_dir(@app, "priv/repo/seeds.exs"))
+      end)
+  end
+
   def rollback(repo, version) do
     load_app()
     {:ok, _, _} = Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, :down, to: version))
