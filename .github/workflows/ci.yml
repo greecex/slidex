@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: erlef/setup-beam@8d44588995e53ce789721e96227122a67826542d
+        with:
+          otp-version: "29.0.1"
+          elixir-version: "1.20.1"
+      - run: mix deps.get
+      - run: mix format --check-formatted
+      - run: mix credo --strict
+
+  audit:
+    name: Audit dependencies
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: erlef/setup-beam@8d44588995e53ce789721e96227122a67826542d
+        with:
+          otp-version: "29.0.1"
+          elixir-version: "1.20.1"
+      - run: mix deps.get
+      - run: mix deps.audit
