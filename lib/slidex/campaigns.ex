@@ -5,10 +5,10 @@ defmodule Slidex.Campaigns do
 
   import Ecto.Query, warn: false
   import Slidex.Authorization
-  alias Slidex.{Repo, Preloader, Polling}
+  alias Slidex.{Polling, Preloader, Repo}
 
-  alias Slidex.Campaigns.Poll
   alias Slidex.Accounts.Scope
+  alias Slidex.Campaigns.Poll
 
   @doc """
   Subscribes to scoped notifications about any poll changes.
@@ -124,25 +124,19 @@ defmodule Slidex.Campaigns do
 
   defp copy_poll_questions(%Poll{} = poll, %Poll{} = original_poll, %Scope{} = scope) do
     original_poll = Repo.preload(original_poll, :questions)
+    Enum.each(original_poll.questions, &copy_question(&1, poll, scope))
+  end
 
-    Enum.each(original_poll.questions, fn question ->
-      with {:ok, %Polling.Question{} = copied_question} <-
-             Polling.create_question(
-               scope,
-               poll,
-               Map.take(question, [:body, :position])
-             ) do
-        copied_question = Repo.preload(copied_question, :options)
+  defp copy_question(question, %Poll{} = poll, %Scope{} = scope) do
+    with {:ok, %Polling.Question{} = copied_question} <-
+           Polling.create_question(scope, poll, Map.take(question, [:body, :position])) do
+      copied_question = Repo.preload(copied_question, :options)
+      Enum.each(question.options, &copy_option(&1, copied_question, scope))
+    end
+  end
 
-        Enum.each(question.options, fn option ->
-          Polling.create_option(
-            scope,
-            copied_question,
-            Map.take(option, [:body, :position, :is_correct])
-          )
-        end)
-      end
-    end)
+  defp copy_option(option, %Polling.Question{} = question, %Scope{} = scope) do
+    Polling.create_option(scope, question, Map.take(option, [:body, :position, :is_correct]))
   end
 
   defp generate_duplicate_title(%Scope{} = scope, title) do

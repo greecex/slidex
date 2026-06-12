@@ -1,7 +1,6 @@
 defmodule Slidex.CampaignsFixtures do
   @moduledoc """
-  This module defines test helpers for creating
-  entities via the `Slidex.Campaigns` context.
+  Test helpers that build `Slidex.Campaigns` entities (polls).
   """
 
   @doc """

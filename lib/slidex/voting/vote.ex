@@ -1,8 +1,8 @@
 defmodule Slidex.Voting.Vote do
   use Ecto.Schema
   import Ecto.Changeset
-  alias Slidex.Polling.{Question, Option}
-  alias Slidex.Voting.{Session, Participant}
+  alias Slidex.Polling.{Option, Question}
+  alias Slidex.Voting.{Participant, Session}
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id

@@ -1,8 +1,8 @@
 defmodule Slidex.PollingTest do
-  use Slidex.DataCase
+  use Slidex.DataCase, async: true
 
   alias Slidex.Polling
-  alias Slidex.Polling.{Question, Option}
+  alias Slidex.Polling.{Option, Question}
 
   import Slidex.AccountsFixtures, only: [user_scope_fixture: 0]
   import Slidex.CampaignsFixtures

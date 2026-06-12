@@ -57,7 +57,7 @@ defmodule SlidexWeb.PollLive.Questions do
     """
   end
 
-  defp question_id(%{id: id}) when not is_nil(id), do: id
+  defp question_id(%{id: id}) when is_binary(id), do: id
   defp question_id(%{temp_id: temp_id}), do: temp_id
   defp question_id(_), do: Ecto.UUID.generate()
 
@@ -77,7 +77,7 @@ defmodule SlidexWeb.PollLive.Questions do
       position: max_position + 1
     }
 
-    questions = socket.assigns.questions ++ [temp_question]
+    questions = List.insert_at(socket.assigns.questions, -1, temp_question)
 
     {:noreply, assign(socket, :questions, questions)}
   end
@@ -92,20 +92,7 @@ defmodule SlidexWeb.PollLive.Questions do
   @impl true
   def handle_info({:add_temporary_option, question, new_option}, socket) do
     questions =
-      Enum.map(socket.assigns.questions, fn q ->
-        if matches_question?(q, question) do
-          max_position =
-            q.options
-            |> Enum.map(& &1.position)
-            |> Enum.max(fn -> 0 end)
-
-          new_option = Map.put(new_option, :position, max_position + 1)
-
-          Map.update(q, :options, [new_option], &(&1 ++ [new_option]))
-        else
-          q
-        end
-      end)
+      Enum.map(socket.assigns.questions, &add_option_to_question(&1, question, new_option))
 
     {:noreply, assign(socket, :questions, questions)}
   end
@@ -113,18 +100,13 @@ defmodule SlidexWeb.PollLive.Questions do
   @impl true
   def handle_info({:question_created, new_question, temp_id}, socket) when is_binary(temp_id) do
     has_temp? =
-      Enum.any?(
-        socket.assigns.questions,
-        fn q -> Map.get(q, :temp_id) == temp_id end
-      )
+      Enum.any?(socket.assigns.questions, fn q -> Map.get(q, :temp_id) == temp_id end)
 
     questions =
       if has_temp? do
-        Enum.map(socket.assigns.questions, fn q ->
-          if Map.get(q, :temp_id) == temp_id, do: new_question, else: q
-        end)
+        Enum.map(socket.assigns.questions, &replace_temp_question(&1, temp_id, new_question))
       else
-        socket.assigns.questions ++ [new_question]
+        List.insert_at(socket.assigns.questions, -1, new_question)
       end
 
     {:noreply,
@@ -174,19 +156,7 @@ defmodule SlidexWeb.PollLive.Questions do
 
   def handle_info({:option_created, new_option, temp_id: temp_id}, socket) do
     questions =
-      Enum.map(socket.assigns.questions, fn question ->
-        if Map.get(question, :id) == new_option.question_id or
-             Map.get(question, :temp_id) == Map.get(new_option, :question_id) do
-          new_options =
-            question.options
-            |> Enum.reject(fn opt -> Map.get(opt, :temp_id) == temp_id end)
-            |> Kernel.++([new_option])
-
-          %{question | options: new_options}
-        else
-          question
-        end
-      end)
+      Enum.map(socket.assigns.questions, &add_created_option(&1, new_option, temp_id))
 
     {:noreply,
      socket
@@ -196,18 +166,7 @@ defmodule SlidexWeb.PollLive.Questions do
 
   def handle_info({:option_updated, updated_option}, socket) do
     questions =
-      Enum.map(socket.assigns.questions, fn question ->
-        if question.id == updated_option.question_id do
-          new_options =
-            Enum.map(question.options, fn opt ->
-              if Map.get(opt, :id) == updated_option.id, do: updated_option, else: opt
-            end)
-
-          %{question | options: new_options}
-        else
-          question
-        end
-      end)
+      Enum.map(socket.assigns.questions, &update_option_in_question(&1, updated_option))
 
     {:noreply,
      socket
@@ -265,6 +224,51 @@ defmodule SlidexWeb.PollLive.Questions do
   defp matches_question?(q, question) do
     Map.get(q, :id) == Map.get(question, :id) or
       (Map.get(q, :temp_id) && Map.get(q, :temp_id) == Map.get(question, :temp_id))
+  end
+
+  defp add_option_to_question(q, question, new_option) do
+    if matches_question?(q, question) do
+      max_position =
+        q.options
+        |> Enum.map(& &1.position)
+        |> Enum.max(fn -> 0 end)
+
+      new_option = Map.put(new_option, :position, max_position + 1)
+      Map.update(q, :options, [new_option], &List.insert_at(&1, -1, new_option))
+    else
+      q
+    end
+  end
+
+  defp replace_temp_question(q, temp_id, new_question) do
+    if Map.get(q, :temp_id) == temp_id, do: new_question, else: q
+  end
+
+  defp add_created_option(question, new_option, temp_id) do
+    if Map.get(question, :id) == new_option.question_id or
+         Map.get(question, :temp_id) == Map.get(new_option, :question_id) do
+      new_options =
+        question.options
+        |> Enum.reject(fn opt -> Map.get(opt, :temp_id) == temp_id end)
+        |> Kernel.++([new_option])
+
+      %{question | options: new_options}
+    else
+      question
+    end
+  end
+
+  defp update_option_in_question(question, updated_option) do
+    if question.id == updated_option.question_id do
+      new_options = Enum.map(question.options, &replace_matching_option(&1, updated_option))
+      %{question | options: new_options}
+    else
+      question
+    end
+  end
+
+  defp replace_matching_option(opt, updated_option) do
+    if Map.get(opt, :id) == updated_option.id, do: updated_option, else: opt
   end
 
   def no_questions_yet(assigns) do

@@ -1,4 +1,8 @@
 defmodule SlidexWeb.Components.Timers do
+  @moduledoc """
+  Time-related UI components, such as a timestamp that renders as relative
+  time and updates in the browser via a colocated hook.
+  """
   use SlidexWeb, :html
 
   attr :datetime, :string, required: true

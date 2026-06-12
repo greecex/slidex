@@ -1,12 +1,17 @@
 defmodule Slidex.Voting do
+  @moduledoc """
+  The Voting context: voting sessions and surveys created from a poll, the
+  participants who join them, the votes cast, and live result tallies.
+  """
+
   import Ecto.Query
   import Slidex.Preloader
   import Slidex.Authorization
 
-  alias Slidex.{Repo, Preloader}
   alias Slidex.Accounts.Scope
   alias Slidex.Campaigns.Poll
-  alias Slidex.Polling.{Question, Option}
+  alias Slidex.Polling.{Option, Question}
+  alias Slidex.{Preloader, Repo}
   alias __MODULE__.{Session, Participant, Vote, Tally}
 
   def subscribe_sessions(%Scope{} = scope) do

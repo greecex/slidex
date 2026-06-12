@@ -1,4 +1,9 @@
 defmodule SlidexWeb.UserAuth do
+  @moduledoc """
+  Authentication plugs and LiveView `on_mount` hooks: fetch the current-user
+  scope from the session, require or redirect based on authentication, and
+  manage the session token and remember-me cookie.
+  """
   use SlidexWeb, :verified_routes
 
   import Plug.Conn

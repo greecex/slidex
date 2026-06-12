@@ -1,7 +1,7 @@
 defmodule SlidexWeb.Layouts do
   @moduledoc """
-  This module holds layouts and related functionality
-  used by your application.
+  Application layouts (root and app) embedded from `layouts/*`, plus the
+  shared layout components rendered around page content.
   """
   use SlidexWeb, :html
 

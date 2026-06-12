@@ -269,13 +269,16 @@ defmodule SlidexWeb.PollLive.Show do
   end
 
   defp group_sessions(sessions) do
-    Enum.reduce(sessions, %{voting: [], surveys: []}, fn s, acc ->
-      if s.state == :survey do
-        Map.put(acc, :surveys, acc.surveys ++ [s])
-      else
-        Map.put(acc, :voting, acc.voting ++ [s])
-      end
-    end)
+    grouped =
+      Enum.reduce(sessions, %{voting: [], surveys: []}, fn s, acc ->
+        if s.state == :survey do
+          Map.update!(acc, :surveys, &[s | &1])
+        else
+          Map.update!(acc, :voting, &[s | &1])
+        end
+      end)
+
+    %{voting: Enum.reverse(grouped.voting), surveys: Enum.reverse(grouped.surveys)}
   end
 
   @impl true

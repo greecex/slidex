@@ -3,7 +3,7 @@ defmodule Slidex.Authorization do
   User-scoped authorization for Poll, Question, Option, Session
   """
 
-  alias Slidex.{Accounts, Repo, Campaigns, Polling, Voting}
+  alias Slidex.{Accounts, Campaigns, Polling, Repo, Voting}
 
   def authorize(%Accounts.Scope{} = scope, %Campaigns.Poll{} = poll),
     do: ok_or_forbidden(poll.user_id == scope.user.id)

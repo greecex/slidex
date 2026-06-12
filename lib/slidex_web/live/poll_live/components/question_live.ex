@@ -208,7 +208,7 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
           socket.assigns.current_scope,
           search_term,
           limit: 8,
-          excluded: [socket.assigns.poll, socket.assigns.question] |> IO.inspect()
+          excluded: [socket.assigns.poll, socket.assigns.question]
         )
       else
         []
@@ -218,7 +218,7 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
      socket
      |> assign(:body, search_term)
      |> assign(:results, results)
-     |> assign(:show_results, length(results) > 0)}
+     |> assign(:show_results, results != [])}
   end
 
   @impl true
@@ -321,7 +321,7 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
     {:noreply, socket}
   end
 
-  defp option_id(%{id: id}) when not is_nil(id), do: id
+  defp option_id(%{id: id}) when is_binary(id), do: id
   defp option_id(%{temp_id: temp_id}), do: temp_id
   defp option_id(_), do: Ecto.UUID.generate()
 

@@ -1,7 +1,6 @@
 defmodule Slidex.AccountsFixtures do
   @moduledoc """
-  This module defines test helpers for creating
-  entities via the `Slidex.Accounts` context.
+  Test helpers that build `Slidex.Accounts` entities (users, scopes, tokens).
   """
 
   import Ecto.Query

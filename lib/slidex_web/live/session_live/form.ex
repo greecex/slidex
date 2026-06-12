@@ -2,8 +2,9 @@ defmodule SlidexWeb.SessionLive.Form do
   use SlidexWeb, :live_view
 
   alias Slidex.{Campaigns, Voting}
-  alias Slidex.Voting.Session
   alias Slidex.Campaigns.Poll
+  alias Slidex.Voting.AccessCode
+  alias Slidex.Voting.Session
 
   @impl true
   def render(assigns) do
@@ -262,7 +263,7 @@ defmodule SlidexWeb.SessionLive.Form do
 
   def handle_event("generate_code", _params, socket) do
     current_params = socket.assigns.form.params || %{}
-    new_params = Map.put(current_params, "access_code", Slidex.Voting.AccessCode.generate())
+    new_params = Map.put(current_params, "access_code", AccessCode.generate())
 
     changeset =
       Voting.change_session(socket.assigns.current_scope, socket.assigns.session, new_params)
@@ -360,13 +361,10 @@ defmodule SlidexWeb.SessionLive.Form do
   end
 
   # Cancel button always returns to the Poll Show page
-  defp poll_return_path(poll, _session) when not is_nil(poll) do
-    ~p"/polls/#{poll.id}"
-  end
+  defp poll_return_path(%Poll{} = poll, _session), do: ~p"/polls/#{poll.id}"
 
-  defp poll_return_path(_poll, session)
-       when not is_nil(session) and not is_nil(session.poll_id) do
-    ~p"/polls/#{session.poll_id}"
+  defp poll_return_path(_poll, %Session{poll_id: poll_id}) when is_binary(poll_id) do
+    ~p"/polls/#{poll_id}"
   end
 
   defp poll_return_path(_poll, _session), do: ~p"/polls"

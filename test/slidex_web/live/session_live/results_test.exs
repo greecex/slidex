@@ -1,5 +1,5 @@
 defmodule SlidexWeb.SessionLive.ResultsTest do
-  use SlidexWeb.ConnCase
+  use SlidexWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
   import Slidex.CampaignsFixtures

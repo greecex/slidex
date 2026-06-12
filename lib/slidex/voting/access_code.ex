@@ -1,4 +1,9 @@
 defmodule Slidex.Voting.AccessCode do
+  @moduledoc """
+  Generates short, human-friendly access codes using Crockford Base32
+  (no I, L, O, U), grouped into dash-separated chunks.
+  """
+
   # Crockford Base32 (no I, L, O, U)
   @alphabet "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
   @len 6

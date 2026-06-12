@@ -1,5 +1,5 @@
 defmodule SlidexWeb.PageControllerTest do
-  use SlidexWeb.ConnCase
+  use SlidexWeb.ConnCase, async: true
 
   test "GET /", %{conn: conn} do
     conn = get(conn, ~p"/")
