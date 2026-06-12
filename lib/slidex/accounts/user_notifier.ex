@@ -9,7 +9,7 @@ defmodule Slidex.Accounts.UserNotifier do
     email =
       new()
       |> to(recipient)
-      |> from({"Slidex", "contact@example.com"})
+      |> from({"Slidex", "noreply@greecex.org"})
       |> subject(subject)
       |> text_body(body)
 

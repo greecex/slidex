@@ -20,21 +20,21 @@ if System.get_env("PHX_SERVER") do
   config :slidex, SlidexWeb.Endpoint, server: true
 end
 
-maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
-
-config :slidex, Slidex.Repo,
-  username: System.fetch_env!("DB_USER"),
-  password: System.fetch_env!("DB_PASS"),
-  hostname: System.fetch_env!("DB_HOST"),
-  port: String.to_integer(System.fetch_env!("DB_PORT")),
-  database: System.fetch_env!("DB_NAME"),
-  pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
-  socket_options: maybe_ipv6,
-  ssl: false,
-  log: :debug
-
 if config_env() == :prod do
-  config :slidex, Slidex.Repo, log: false
+  database_url =
+    System.get_env("DATABASE_URL") ||
+      raise """
+      environment variable DATABASE_URL is missing.
+      For example: ecto://USER:PASS@HOST/DATABASE
+      """
+
+  maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
+
+  config :slidex, Slidex.Repo,
+    # ssl: true,
+    url: database_url,
+    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
+    socket_options: maybe_ipv6
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you
@@ -49,7 +49,7 @@ if config_env() == :prod do
       """
 
   host = System.get_env("PHX_HOST") || "example.com"
-  port = String.to_integer(System.get_env("PORT") || "5716")
+  port = String.to_integer(System.get_env("PORT") || "4000")
 
   config :slidex, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
@@ -99,19 +99,18 @@ if config_env() == :prod do
 
   # ## Configuring the mailer
   #
-  # In production you need to configure the mailer to use a different adapter.
-  # Here is an example configuration for Mailgun:
-  #
-  #     config :slidex, Slidex.Mailer,
-  #       adapter: Swoosh.Adapters.Mailgun,
-  #       api_key: System.get_env("MAILGUN_API_KEY"),
-  #       domain: System.get_env("MAILGUN_DOMAIN")
-  #
-  # Most non-SMTP adapters require an API client. Swoosh supports Req, Hackney,
-  # and Finch out-of-the-box. This configuration is typically done at
-  # compile-time in your config/prod.exs:
-  #
-  #     config :swoosh, :api_client, Swoosh.ApiClient.Req
+  # Email is delivered via Mailgun (EU region), reusing the verified
+  # greecex.org sending domain. Set MAILGUN_API_KEY and MAILGUN_DOMAIN
+  # (greecex.org) in the release environment.
+  config :slidex, Slidex.Mailer,
+    adapter: Swoosh.Adapters.Mailgun,
+    api_key: System.get_env("MAILGUN_API_KEY"),
+    domain: System.get_env("MAILGUN_DOMAIN"),
+    base_url: "https://api.eu.mailgun.net/v3"
+
+  # The Mailgun adapter uses Swoosh's API client. Swoosh supports Req out of
+  # the box, and Req is already a dependency.
+  config :swoosh, :api_client, Swoosh.ApiClient.Req
   #
   # See https://hexdocs.pm/swoosh/Swoosh.html#module-installation for details.
 end
