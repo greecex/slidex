@@ -1,7 +1,6 @@
 defmodule Slidex.VotingFixtures do
   @moduledoc """
-  This module defines test helpers for creating
-  entities via the `Slidex.Voting` context.
+  Test helpers that build `Slidex.Voting` entities (sessions, participants, votes).
   """
 
   alias Slidex.Voting

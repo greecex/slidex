@@ -8,7 +8,7 @@ defmodule Slidex.Search do
   convenient pre-filling of existing question or option `:body` values.
   """
   import Ecto.Query
-  alias Slidex.{Repo, Accounts, Campaigns, Polling}
+  alias Slidex.{Accounts, Campaigns, Polling, Repo}
 
   @limit 5
 

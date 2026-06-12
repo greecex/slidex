@@ -1,4 +1,7 @@
 defmodule SlidexWeb.PollLive.Components.SessionModal do
+  @moduledoc """
+  LiveComponent for the modal that creates and edits a poll's voting session.
+  """
   use SlidexWeb, :live_component
 
   alias Phoenix.LiveView.JS

@@ -1,5 +1,5 @@
 defmodule SlidexWeb.SessionLive.JoinTest do
-  use SlidexWeb.ConnCase
+  use SlidexWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
   import Slidex.AccountsFixtures, only: [user_scope_fixture: 0]

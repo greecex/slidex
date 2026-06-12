@@ -1,5 +1,5 @@
 defmodule Slidex.AccountsTest do
-  use Slidex.DataCase
+  use Slidex.DataCase, async: true
 
   alias Slidex.Accounts
 

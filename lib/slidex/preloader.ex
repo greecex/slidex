@@ -4,7 +4,7 @@ defmodule Slidex.Preloader do
   """
   require Logger
   import Ecto.Query
-  alias Slidex.{Repo, Campaigns, Polling, Voting}
+  alias Slidex.{Campaigns, Polling, Repo, Voting}
 
   def with_preloads(record_or_list_or_tuple, opts \\ [])
 

@@ -1,21 +1,15 @@
 defmodule SlidexWeb.ConnCase do
   @moduledoc """
-  This module defines the test case to be used by
-  tests that require setting up a connection.
+  ExUnit case template for tests that drive the endpoint through a `Plug.Conn`.
 
-  Such tests rely on `Phoenix.ConnTest` and also
-  import other functionality to make it easier
-  to build common data structures and query the data layer.
-
-  Finally, if the test case interacts with the database,
-  we enable the SQL sandbox, so changes done to the database
-  are reverted at the end of every test. If you are using
-  PostgreSQL, you can even run database tests asynchronously
-  by setting `use SlidexWeb.ConnCase, async: true`, although
-  this option is not recommended for other databases.
+  Imports `Phoenix.ConnTest`, sets the `@endpoint`, and wraps each test in the
+  Ecto SQL sandbox so database changes roll back. Pass `async: true` when the
+  test does not rely on shared state.
   """
 
   use ExUnit.CaseTemplate
+
+  alias Slidex.Accounts.Scope
 
   using do
     quote do
@@ -46,7 +40,7 @@ defmodule SlidexWeb.ConnCase do
   """
   def register_and_log_in_user(%{conn: conn} = context) do
     user = Slidex.AccountsFixtures.user_fixture()
-    scope = Slidex.Accounts.Scope.for_user(user)
+    scope = Scope.for_user(user)
 
     opts =
       context

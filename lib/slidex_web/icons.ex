@@ -1,4 +1,7 @@
 defmodule SlidexWeb.Icons do
+  @moduledoc """
+  Logo and brand image components rendered as inline markup.
+  """
   use SlidexWeb, :html
 
   attr :width, :integer, default: 36

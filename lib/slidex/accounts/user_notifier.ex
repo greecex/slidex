@@ -1,15 +1,20 @@
 defmodule Slidex.Accounts.UserNotifier do
+  @moduledoc """
+  Builds and sends account emails: magic-link login, account confirmation,
+  and email-change instructions.
+  """
+
   import Swoosh.Email
 
-  alias Slidex.Mailer
   alias Slidex.Accounts.User
+  alias Slidex.Mailer
 
   # Delivers the email using the application mailer.
   defp deliver(recipient, subject, body) do
     email =
       new()
       |> to(recipient)
-      |> from({"Slidex", "contact@example.com"})
+      |> from({"Slidex", "noreply@greecex.org"})
       |> subject(subject)
       |> text_body(body)
 

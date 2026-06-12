@@ -214,7 +214,7 @@ defmodule SlidexWeb.PollLive.Components.OptionLive do
           socket.assigns.current_scope,
           search_term,
           limit: 8,
-          excluded: [socket.assigns.question, socket.assigns.option] |> IO.inspect()
+          excluded: [socket.assigns.question, socket.assigns.option]
         )
       else
         []
@@ -224,7 +224,7 @@ defmodule SlidexWeb.PollLive.Components.OptionLive do
      socket
      |> assign(:body, search_term)
      |> assign(:results, results)
-     |> assign(:show_results, length(results) > 0)}
+     |> assign(:show_results, results != [])}
   end
 
   @impl true
@@ -260,35 +260,17 @@ defmodule SlidexWeb.PollLive.Components.OptionLive do
   @impl true
   def handle_event("save", _params, socket) do
     scope = socket.assigns.current_scope
-    option = socket.assigns.option
     body = String.trim(socket.assigns.body || "")
 
-    if body == "" do
-      {:noreply, put_flash(socket, :error, "Option body cannot be empty")}
-    else
-      attrs = %{body: body, is_correct: socket.assigns.is_correct}
+    cond do
+      body == "" ->
+        {:noreply, put_flash(socket, :error, "Option body cannot be empty")}
 
-      if socket.assigns.is_temporary do
-        question = socket.assigns.question
+      socket.assigns.is_temporary ->
+        save_new_option(socket, scope, body)
 
-        case Polling.create_option(scope, question, attrs) do
-          {:ok, persisted_option} ->
-            send(self(), {:option_created, persisted_option, temp_id: option.temp_id})
-            {:noreply, assign(socket, :editing, false)}
-
-          {:error, _changeset} ->
-            {:noreply, put_flash(socket, :error, "Could not save option")}
-        end
-      else
-        case Polling.update_option(scope, option, attrs) do
-          {:ok, updated_option} ->
-            send(self(), {:option_updated, updated_option})
-            {:noreply, assign(socket, :editing, false)}
-
-          {:error, _changeset} ->
-            {:noreply, put_flash(socket, :error, "Could not update option")}
-        end
-      end
+      true ->
+        save_existing_option(socket, scope, body)
     end
   end
 
@@ -314,5 +296,31 @@ defmodule SlidexWeb.PollLive.Components.OptionLive do
     send(self(), {:options_reordered, socket.assigns.question})
 
     {:noreply, socket}
+  end
+
+  defp save_new_option(socket, scope, body) do
+    attrs = %{body: body, is_correct: socket.assigns.is_correct}
+
+    case Polling.create_option(scope, socket.assigns.question, attrs) do
+      {:ok, persisted_option} ->
+        send(self(), {:option_created, persisted_option, temp_id: socket.assigns.option.temp_id})
+        {:noreply, assign(socket, :editing, false)}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Could not save option")}
+    end
+  end
+
+  defp save_existing_option(socket, scope, body) do
+    attrs = %{body: body, is_correct: socket.assigns.is_correct}
+
+    case Polling.update_option(scope, socket.assigns.option, attrs) do
+      {:ok, updated_option} ->
+        send(self(), {:option_updated, updated_option})
+        {:noreply, assign(socket, :editing, false)}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Could not update option")}
+    end
   end
 end

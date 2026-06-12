@@ -4,9 +4,9 @@ defmodule Slidex.Polling.Reorder do
   """
 
   import Ecto.Query
-  alias Slidex.{Repo, Authorization}
   alias Slidex.Accounts.Scope
-  alias Slidex.Polling.{Question, Option}
+  alias Slidex.{Authorization, Repo}
+  alias Slidex.Polling.{Option, Question}
 
   @doc """
   Moves an option one step higher or lower within its question,
@@ -68,15 +68,17 @@ defmodule Slidex.Polling.Reorder do
     Repo.transaction(fn ->
       siblings
       |> Enum.with_index()
-      |> Enum.each(fn {opt, idx} ->
-        if opt.position != idx do
-          opt
-          |> Ecto.Changeset.change(position: idx)
-          |> Repo.update!()
-        end
-      end)
+      |> Enum.each(&reposition/1)
     end)
 
     {:ok, :reordered}
+  end
+
+  defp reposition({record, index}) do
+    if record.position != index do
+      record
+      |> Ecto.Changeset.change(position: index)
+      |> Repo.update!()
+    end
   end
 end

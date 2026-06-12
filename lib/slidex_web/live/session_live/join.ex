@@ -117,9 +117,9 @@ defmodule SlidexWeb.SessionLive.Join do
 
   @impl true
   def handle_event("vote", %{"question" => question_id, "option" => option_id}, socket) do
-    with question when not is_nil(question) <-
+    with question when is_struct(question) <-
            Enum.find(socket.assigns.questions, &(&1.id == question_id)),
-         option when not is_nil(option) <- Enum.find(question.options, &(&1.id == option_id)),
+         option when is_struct(option) <- Enum.find(question.options, &(&1.id == option_id)),
          {:ok, _vote} <-
            Voting.cast_vote(socket.assigns.session, socket.assigns.participant, question, option) do
       votes = Voting.list_participant_votes(socket.assigns.session, socket.assigns.participant)

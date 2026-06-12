@@ -1,7 +1,6 @@
 defmodule Slidex.PollingFixtures do
   @moduledoc """
-  This module defines test helpers for creating
-  entities via the `Slidex.Polling` context.
+  Test helpers that build `Slidex.Polling` entities (questions and options).
   """
 
   alias Slidex.Polling

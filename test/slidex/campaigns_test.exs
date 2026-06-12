@@ -1,5 +1,5 @@
 defmodule Slidex.CampaignsTest do
-  use Slidex.DataCase
+  use Slidex.DataCase, async: true
 
   alias Slidex.Campaigns
 

@@ -2,25 +2,30 @@
 #
 #     mix run priv/repo/seeds.exs
 #
-# Inside the script, you can read and write to any of your
-# repositories directly:
+# In a release (production), run it once with:
 #
-#     Slidex.Repo.insert!(%Slidex.SomeSchema{})
+#     bin/slidex eval "Slidex.Release.seed()"
 #
-# We recommend using the bang functions (`insert!`, `update!`
-# and so on) as they will fail if something goes wrong.
+# Seeding is idempotent: existing users are left untouched.
 
 alias Slidex.Accounts
 
-# Create demo user
+seed_user = fn email, username ->
+  case Accounts.get_user_by_email(email) do
+    nil ->
+      {:ok, user} = Accounts.register_user(%{email: email, username: username})
+      {:ok, {confirmed_user, _expired_tokens}} = Accounts.confirm_unconfirmed_user(user)
+      confirmed_user
 
-attrs = %{
-  email: "demo@example.com",
-  username: "demo"
-}
-
-user =
-  with {:ok, u} <- Accounts.register_user(attrs),
-       {:ok, {confirmed_user, _}} <- Accounts.confirm_unconfirmed_user(u) do
-    confirmed_user
+    user ->
+      user
   end
+end
+
+# The owner account, seeded in every environment. Magic-link login only, no password.
+seed_user.("petros@amignosis.com", "petros")
+
+# A demo account, useful only for local development.
+if Application.get_env(:slidex, :dev_routes, false) do
+  seed_user.("demo@example.com", "demo")
+end
