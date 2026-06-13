@@ -40,6 +40,21 @@ defmodule Slidex.Voting do
   def session_topic(%Session{slug: slug}), do: "session:#{slug}"
 
   @doc """
+  Returns the total number of votes cast across all sessions.
+
+  Used for the public home-page stats, so it is intentionally not scoped.
+
+  ## Examples
+
+      iex> count_votes()
+      128
+
+  """
+  def count_votes do
+    Repo.aggregate(Vote, :count)
+  end
+
+  @doc """
   Subscribes to the public room topic for a session, used by the presenter and
   participants for live lifecycle, question, and results events.
   """
