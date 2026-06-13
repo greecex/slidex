@@ -70,6 +70,17 @@ defmodule Slidex.VotingTest do
       assert Voting.tally(session, q) == %{o.id => 1}
     end
 
+    test "count_votes/0 counts votes across all sessions", %{
+      session: session,
+      participant: p,
+      question: q,
+      option: o
+    } do
+      assert Voting.count_votes() == 0
+      vote_fixture(session, p, q, o)
+      assert Voting.count_votes() == 1
+    end
+
     test "re-voting updates the chosen option without adding a second vote", %{
       scope: scope,
       session: session,
