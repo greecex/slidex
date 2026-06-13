@@ -33,6 +33,21 @@ defmodule Slidex.Campaigns do
   end
 
   @doc """
+  Returns the total number of polls across all users.
+
+  Used for the public home-page stats, so it is intentionally not scoped.
+
+  ## Examples
+
+      iex> count_polls()
+      42
+
+  """
+  def count_polls do
+    Repo.aggregate(Poll, :count)
+  end
+
+  @doc """
   Returns the list of polls.
 
   ## Examples

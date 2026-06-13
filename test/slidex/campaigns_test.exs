@@ -20,6 +20,15 @@ defmodule Slidex.CampaignsTest do
       assert Campaigns.list_polls(other_scope) == [other_poll]
     end
 
+    test "count_polls/0 counts polls across all users" do
+      assert Campaigns.count_polls() == 0
+
+      poll_fixture(user_scope_fixture())
+      poll_fixture(user_scope_fixture())
+
+      assert Campaigns.count_polls() == 2
+    end
+
     test "get_poll!/2 returns the poll with given id" do
       scope = user_scope_fixture()
       poll = poll_fixture(scope)
