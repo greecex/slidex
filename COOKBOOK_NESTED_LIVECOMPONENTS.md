@@ -223,6 +223,8 @@ Before writing LiveView code, verify:
 
 ---
 
+## 3. Architecture: The Golden Pattern
+
 ### Layer Responsibilities
 
 | Layer | Owns | Never Does |
@@ -1188,6 +1190,8 @@ later — the data flow is identical, only the socket operations change.
 This is the complete specification of how messages flow. Every message is documented with
 its direction, trigger, and handler.
 
+## 8. Communication Contract
+
 ### Event Flow Diagram
 
 ```
@@ -1838,6 +1842,8 @@ end
 ---
 
 All DB operations live in a context module. The LiveView never runs queries directly.
+
+## 13. The Context Module in Depth
 
 ### Pattern for a Context Module
 
