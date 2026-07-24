@@ -2328,6 +2328,69 @@ still grows too large, split into separate routes.
 **Good practice for sizing:** If you cannot describe what a module does in one sentence
 without using "and", it is too large.
 
+### Pitfall 10: PubSub broadcast overwrites user's in-progress edits
+
+**Symptom:** A user is typing in a child LiveComponent's form field. A PubSub broadcast
+arrives from another session. The form field resets to the persisted value, losing the
+user's unsaved input.
+
+**Root cause:** The PubSub broadcast triggers a parent LiveView re-render, which calls
+`update/2` on every child LiveComponent. If `update/2` unconditionally overwrites local
+state from the parent's assigns, the user's input is lost.
+
+```elixir
+# BROKEN — unconditionally overwrites on every parent re-render
+def update(assigns, socket) do
+  {:ok,
+   socket
+   |> assign(assigns)
+   |> assign(:body, assigns.child.body || "")}  # ← Wipes user input on PubSub broadcast
+end
+
+# FIXED — preserves local edit state
+def update(assigns, socket) do
+  socket = assign(socket, assigns)
+
+  socket =
+    if socket.assigns.editing do
+      socket  # ← User is editing — keep their input
+    else
+      assign(socket, :body, assigns.child.body || "")
+    end
+
+  {:ok, socket}
+end
+```
+
+**Fix:** Always guard `update/2` with the `editing` check. Only overwrite local state
+from the parent's assigns when the component is NOT in edit mode. See section 5 for
+the complete update/2 guard pattern.
+
+**Additional defense:** Set a `:pending_refresh` flag in the LiveView when a broadcast
+arrives during editing, and apply the refresh only after the user finishes their edit:
+
+```elixir
+# In the parent LiveView
+def handle_info({:parent_updated, _id}, socket) do
+  if socket.assigns.someone_is_editing do
+    {:noreply, assign(socket, :pending_refresh, true)}
+  else
+    # Apply refresh immediately
+    {:noreply, refresh_from_db(socket)}
+  end
+end
+
+# Apply pending refresh on next user interaction
+def handle_event("add_child", _params, socket) do
+  socket = if socket.assigns.pending_refresh do
+    socket |> refresh_from_db() |> assign(:pending_refresh, false)
+  else
+    socket
+  end
+  # ... rest of add_child logic
+end
+```
+
 ---
 
 ## 16. Testing the Pattern
