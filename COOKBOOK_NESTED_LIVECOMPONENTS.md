@@ -553,16 +553,95 @@ def handle_info({:children_reordered, parent}, socket) do
 end
 ```
 
-**Message naming convention:** Use `:child_verb` tuples. For nested messages from
-grandchildren, include the intermediate scope to target the right parent:
+**Grandchild events at the parent level:** When grandchildren exist, the parent LiveView
+also handles grandchild CRUD events because the parent owns ALL nested data — the
+grandchildren list lives inside each child record in the parent's `@children` assign.
+Grandchild events must find the correct parent child and update its nested list:
 
 ```elixir
-# From grandchild, received by parent LiveView
-def handle_info({:grandchild_created, new_grandchild, parent_child_id: parent_child_id, temp_id: temp_id}, socket) do
-  # Find the child in the list by parent_child_id, update its grandchildren
-  ...
+# Grandchild was created — find the child by foreign key and append
+def handle_info({:grandchild_created, new_grandchild, temp_id: temp_id}, socket) do
+  children =
+    Enum.map(socket.assigns.children, fn child ->
+      if Map.get(child, :id) == new_grandchild.parent_id or
+         Map.get(child, :temp_id) == Map.get(new_grandchild, :parent_id) do
+        grandchild_children = child.grandchildren
+          |> Enum.reject(fn gc -> Map.get(gc, :temp_id) == temp_id end)
+          |> Kernel.++([new_grandchild])
+
+        %{child | grandchildren: grandchild_children}
+      else
+        child
+      end
+    end)
+
+  {:noreply,
+   socket
+   |> assign(:children, children)
+   |> put_flash(:info, "Grandchild saved")}
+end
+
+# Grandchild was updated — find the child by foreign key and replace
+def handle_info({:grandchild_updated, updated_grandchild}, socket) do
+  children =
+    Enum.map(socket.assigns.children, fn child ->
+      if child.id == updated_grandchild.parent_id do
+        new_grandchildren =
+          Enum.map(child.grandchildren, fn gc ->
+            if Map.get(gc, :id) == updated_grandchild.id, do: updated_grandchild, else: gc
+          end)
+
+        %{child | grandchildren: new_grandchildren}
+      else
+        child
+      end
+    end)
+
+  {:noreply,
+   socket
+   |> assign(:children, children)
+   |> put_flash(:info, "Grandchild updated")}
+end
+
+# Grandchild was deleted — find the child and reject
+def handle_info({:grandchild_deleted, grandchild_id}, socket) do
+  children =
+    Enum.map(socket.assigns.children, fn child ->
+      new_grandchildren =
+        Enum.reject(child.grandchildren, fn gc ->
+          Map.get(gc, :id) == grandchild_id or Map.get(gc, :temp_id) == grandchild_id
+        end)
+
+      %{child | grandchildren: new_grandchildren}
+    end)
+
+  flash? = not String.starts_with?(to_string(grandchild_id), "temp_")
+
+  {:noreply,
+   socket
+   |> (fn s -> if flash?, do: put_flash(s, :info, "Grandchild deleted"), else: s end).()
+   |> assign(:children, children)}
+end
+
+# Grandchild reorder — re-fetch the affected child's grandchildren from DB
+def handle_info({:grandchildren_reordered, parent_child}, socket) do
+  children =
+    Enum.map(socket.assigns.children, fn child ->
+      if Map.get(child, :id) == parent_child.id or
+         Map.get(child, :temp_id) == Map.get(parent_child, :temp_id) do
+        updated = MyApp.Polling.list_grandchildren(socket.assigns.current_scope, child)
+        %{child | grandchildren: updated}
+      else
+        child
+      end
+    end)
+
+  {:noreply, assign(socket, :children, children)}
 end
 ```
+
+**Message naming convention:** Use `:child_verb` tuples. Grandchild messages follow the same
+pattern but the parent routes them by matching the foreign key on the child.
 
 ### send_update/2: Targeted Parent-to-Child Updates
 
