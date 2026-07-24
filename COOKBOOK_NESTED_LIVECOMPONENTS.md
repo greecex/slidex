@@ -284,45 +284,85 @@ defmodule MyApp.Polling.Question do
     |> validate_required(required)
     |> foreign_key_constraint(:poll_id)
     |> validate_length(:body, max: 500)
+    |> cast_assoc(:options)  # Enables nested save from parent → children
   end
 end
 ```
 
 **Rules:**
 - Use `:binary_id` primary keys (UUIDv4) by default — URL-safe, no sequential guessing
-- Programmatic fields (`position`, foreign keys) are set on the struct, **not** in `cast`
-- The `position` field is an integer, default 0
+- Position is computed by the context module (via `aggregate(:max, :position)`), set on the struct via struct literal, and listed in cast for changeset completeness. **Never accept position from user params** — the LiveView context call sets it server-side.
 - `on_delete: :delete_all` on the parent's `has_many` so deleting a parent cascades
+- `cast_assoc(:children)` enables nested saves but bypasses the component-message pattern. Prefer saving children independently via context calls unless you have a batch-save use case.
 
 ### 3.5. The Preloader Strategy
 
 Every time the parent LiveView needs the child list (on mount, after reorder, after
 PubSub broadcast), it must fetch the parent WITH its children preloaded and ordered.
-Centralize this logic in a dedicated `Preloader` module to avoid scattered Ecto queries:
+Centralize this logic in a dedicated `Preloader` module to avoid scattered Ecto queries.
+The common pattern dispatches preload specs by struct type:
 
 ```elixir
 defmodule MyApp.Preloader do
-  alias MyApp.{Campaigns, Repo}
+  import Ecto.Query
+  alias MyApp.{Campaigns, Polling, Repo}
 
   @doc """
-  Eager-loads the full tree: parent → children → grandchildren, all ordered.
+  Eager-loads the full tree for any supported struct type.
+  Accepts a single record, a list, or a {:ok, record} / {:error, _} tuple.
   """
-  def with_preloads(%Ecto.Query{} = query) do
-    query
-    |> Repo.preload(children: {ordered_children(), [grandchildren: ordered_grandchildren()]})
+  def with_preloads(record_or_list_or_tuple, opts \\ [])
+
+  def with_preloads(records, opts) when is_list(records) and is_list(opts) do
+    # Dispatches per struct type for heterogeneous lists
+    records
+    |> Enum.map(& &1.__struct__)
+    |> Enum.uniq()
+    |> case do
+      [] -> []
+      [struct_module] ->
+        spec = struct_module.__struct__() |> preloads()
+        records |> Repo.preload(spec) |> maybe_sort()
+      _ -> Enum.map(records, &with_preloads(&1, opts))
+    end
   end
 
-  def with_preloads(%struct_module{} = record) do
-    Repo.preload(record, children: {ordered_children(), [grandchildren: ordered_grandchildren()]})
+  def with_preloads(record, opts) when is_struct(record) and is_list(opts) do
+    spec = Keyword.get(opts, :preloads, preloads(record))
+    record |> Repo.preload(spec) |> maybe_sort()
   end
 
-  defp ordered_children do
-    {from(c in Child, order_by: [asc: c.position, asc: c.inserted_at]), []}
+  def with_preloads(nil, _opts), do: nil
+  def with_preloads({:ok, record}, opts), do: {:ok, with_preloads(record, opts)}
+  def with_preloads({:error, _} = error, _opts), do: error
+
+  # Preload specs — one per struct type
+  defp preloads(%MyApp.Campaigns.Poll{}) do
+    [
+      questions: {sorted_children_query(), [options: sorted_grandchildren_query()]},
+    ]
   end
 
-  defp ordered_grandchildren do
-    from(g in Grandchild, order_by: [asc: g.position, asc: g.inserted_at])
+  defp preloads(%MyApp.Polling.Question{}) do
+    [:poll, options: sorted_grandchildren_query()]
   end
+
+  defp preloads(%MyApp.Polling.Option{}), do: [question: :poll]
+
+  defp sorted_children_query do
+    from(c in MyApp.Polling.Question, order_by: [asc: c.position, asc: c.inserted_at])
+  end
+
+  defp sorted_grandchildren_query do
+    from(g in MyApp.Polling.Option, order_by: [asc: g.position, asc: g.inserted_at])
+  end
+
+  # Ecto preload ordering through has_many is fragile —
+  # re-sort in memory as a belt-and-suspenders measure.
+  defp maybe_sort(%{questions: questions} = record) when is_list(questions) do
+    %{record | questions: Enum.sort_by(questions, & &1.position)}
+  end
+  defp maybe_sort(record), do: record
 end
 ```
 
@@ -340,20 +380,26 @@ refreshed =
   socket.assigns.current_scope
   |> Campaigns.get_parent!(parent.id)
   |> Preloader.with_preloads()
+
+# When the context returns {:ok, record}
+{:ok, child} = Polling.create_child(scope, parent, attrs)
+{:ok, child_with_preloads} = Preloader.with_preloads(child)
 ```
 
 **Why a Preloader module?**
 - Single source of truth for the preload shape — one change propagates everywhere
+- Dispatches per struct type, so every handler gets the right preload automatically
 - Guarantees consistent ordering (position, then inserted_at as tiebreaker)
-- Handles both query and struct inputs transparently
+- Handles records, lists, tuples, and nil transparently
 - Avoids N+1 queries in templates — all data is loaded before rendering
-- Easy to extend when new associations are added (e.g., `:attachments`)
+- Easy to extend when new associations are added
 
 **What gets preloaded:**
-1. The parent record itself
-2. All children, ordered by `position ASC, inserted_at ASC`
-3. All grandchildren of each child, ordered by `position ASC, inserted_at ASC`
-4. (Optional) Any additional associations the LiveComponents need for display
+1. The parent record itself (children and grandchildren)
+2. A single child (its parent + its children)
+3. A single grandchild (its parent chain)
+4. All ordered by `position ASC, inserted_at ASC`
+5. (Optional) Any additional associations the LiveComponents need for display
 
 ---
 
@@ -380,14 +426,15 @@ defmodule MyAppWeb.ParentLive.Questions do
     {:ok,
      socket
      |> assign(:parent, parent)
-     |> assign(:children, parent.children)  # The list of child records
+     |> assign(:children, parent.questions)  # The list of child records (use your actual assoc name)
      |> assign(:page_title, "Manage Children")}
   end
 end
 ```
 
 **Key rule:** Always preload children with ordering on mount. The parent view should never
-need to query per-child.
+need to query per-child. The assign name `:children` here is generic — substitute your
+actual association name (e.g., `:questions`, `:options`, `:items`).
 
 ### Render
 
