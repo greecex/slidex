@@ -1718,7 +1718,9 @@ temp_child = %{
   temp_id: "temp_#{System.unique_integer([:positive])}",
   body: "",
   position: max_position + 1,
-  editing: true   # <--- Transient UI state, never persisted
+  parent_id: socket.assigns.parent.id,  # Foreign key for context module
+  grandchildren: [],                      # Empty list for grandchild rendering
+  editing: true                          # Transient UI state, never persisted
 }
 ```
 
