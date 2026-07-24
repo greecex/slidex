@@ -15,19 +15,23 @@
 ## Table of Contents
 
 1. [Overview and Concepts](#1-overview-and-concepts)
-2. [Architecture: The Golden Pattern](#2-architecture-the-golden-pattern)
-3. [Parent LiveView: Owning the List](#3-parent-liveview-owning-the-list)
-4. [Child LiveComponent: Self-Contained Item](#4-child-livecomponent-self-contained-item)
-5. [Grandchild LiveComponent: Two Levels Deep](#5-grandchild-livecomponent-two-levels-deep)
-6. [Communication Contract](#6-communication-contract)
-7. [The Reordering Pattern](#7-the-reordering-pattern)
-8. [Optimistic UI with Temporary Records](#8-optimistic-ui-with-temporary-records)
-9. [The Context Module](#9-the-context-module)
-10. [No-Negotiables and Guardrails](#10-no-negotiables-and-guardrails)
-11. [Common Pitfalls](#11-common-pitfalls)
-12. [Testing the Pattern](#12-testing-the-pattern)
-13. [Cheat Sheet: Messages Reference](#13-cheat-sheet-messages-reference)
-14. [Implementation Checklist](#14-implementation-checklist)
+2. [Prerequisites and Setup](#2-prerequisites-and-setup)
+3. [Architecture: The Golden Pattern](#3-architecture-the-golden-pattern)
+4. [Parent LiveView: Owning the List](#4-parent-liveview-owning-the-list)
+5. [Child LiveComponent: Self-Contained Item](#5-child-livecomponent-self-contained-item)
+6. [Grandchild LiveComponent: Two Levels Deep](#6-grandchild-livecomponent-two-levels-deep)
+7. [LiveView Streams for Dynamic Lists](#7-liveview-streams-for-dynamic-lists)
+8. [Communication Contract](#8-communication-contract)
+9. [The Reordering Pattern](#9-the-reordering-pattern)
+10. [Optimistic UI with Temporary Records](#10-optimistic-ui-with-temporary-records)
+11. [PubSub and Multi-User Coordination](#11-pubsub-and-multi-user-coordination)
+12. [Error Recovery and Resilience](#12-error-recovery-and-resilience)
+13. [The Context Module in Depth](#13-the-context-module-in-depth)
+14. [No-Negotiables and Guardrails](#14-no-negotiables-and-guardrails)
+15. [Common Pitfalls](#15-common-pitfalls)
+16. [Testing the Pattern](#16-testing-the-pattern)
+17. [Cheat Sheet: Messages Reference](#17-cheat-sheet-messages-reference)
+18. [Implementation Checklist](#18-implementation-checklist)
 
 ---
 
@@ -86,7 +90,7 @@ component with the new data.
 
 ---
 
-## 2. Architecture: The Golden Pattern
+## 3. Architecture: The Golden Pattern
 
 ### Layer Responsibilities
 
@@ -160,7 +164,7 @@ end
 
 ---
 
-## 3. Parent LiveView: Owning the List
+## 4. Parent LiveView: Owning the List
 
 This is the LiveView that manages the collection. It fetches data, handles CRUD by calling the
 context module, and renders child LiveComponents.
@@ -322,7 +326,7 @@ end
 
 ---
 
-## 4. Child LiveComponent: Self-Contained Item
+## 5. Child LiveComponent: Self-Contained Item
 
 Each item in the list is a LiveComponent. It manages its own transient state (editing mode,
 form values, search results) and sends messages upward when it needs the parent to persist
@@ -484,7 +488,7 @@ end
 
 ---
 
-## 5. Grandchild LiveComponent: Two Levels Deep
+## 6. Grandchild LiveComponent: Two Levels Deep
 
 This is where the pattern extends: a LiveComponent that renders its own list of child
 LiveComponents. The same principles apply, but now the communication has a direct path:
@@ -632,7 +636,7 @@ doesn't need to know its parent's parent's structure.
 
 ---
 
-## 6. Communication Contract
+## 8. Communication Contract
 
 This is the complete specification of how messages flow. Every message is documented with
 its direction, trigger, and handler.
@@ -696,13 +700,13 @@ payload (e.g., `question_id`) to know which child's list to update.
 
 ---
 
-## 7. The Reordering Pattern
+## 9. The Reordering Pattern
 
 Reordering is one of the hardest parts to get right. Here is the pattern that works.
 
 > ⚠️ **Common mistake:** The parent LiveView receives a stale struct from the child message
 > and tries to preload new data from it. Always re-fetch from the database instead.
-> See Pitfall 8 in section 11.
+> See Pitfall 8 in section 15.
 
 ### Context Module (Pure Logic)
 
@@ -832,7 +836,7 @@ principle is the same: re-query, don't reuse.
 
 ---
 
-## 8. Optimistic UI with Temporary Records
+## 10. Optimistic UI with Temporary Records
 
 ### The Temp ID Pattern
 
@@ -919,7 +923,7 @@ should_flash? = not String.starts_with?(to_string(child_id), "temp_")
 
 ---
 
-## 9. The Context Module
+## 13. The Context Module in Depth
 
 All DB operations live in a context module. The LiveView never runs queries directly.
 
@@ -1020,7 +1024,7 @@ end
 
 ---
 
-## 10. No-Negotiables and Guardrails
+## 14. No-Negotiables and Guardrails
 
 These rules are **not optional**. Violating any of them will produce bugs, data corruption,
 or security holes.
@@ -1161,7 +1165,7 @@ transaction commits. Never use it for data you just mutated. Use it only for ide
 tells you *what* it looks like now. Always re-fetch.
 ---
 
-## 11. Common Pitfalls
+## 15. Common Pitfalls
 
 ### Pitfall 1: Component remounts instead of updating
 
@@ -1345,7 +1349,7 @@ without using "and", it is too large.
 
 ---
 
-## 12. Testing the Pattern
+## 16. Testing the Pattern
 
 ### Testing Philosophy
 
@@ -1436,7 +1440,7 @@ end
 
 ---
 
-## 13. Cheat Sheet: Messages Reference
+## 17. Cheat Sheet: Messages Reference
 
 ### Communication Direction Summary
 
@@ -1518,7 +1522,7 @@ end
 
 ---
 
-## 14. Implementation Checklist
+## 18. Implementation Checklist
 
 ### Before You Write Code
 - [ ] Design doc written and reviewed (one page, covers: data model, LiveView/component tree, message flow, reordering strategy)
