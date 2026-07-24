@@ -114,7 +114,7 @@ lib/my_app_web/live/parent_live/
 ├── index.ex              # Parent LiveView (list owner)
 ├── form.ex               # Optional: parent create/edit form
 ├── show.ex               # Optional: parent detail
-├── questions.ex          # OR: dedicated page for managing children (like Slidex)
+├── questions.ex          # OR: dedicated page for managing children
 └── components/
     ├── child_live.ex     # Child LiveComponent
     └── grandchild_live.ex # Grandchild LiveComponent (if nested)
@@ -502,7 +502,7 @@ points to the **parent LiveView**, so `send(self(), ...)` still reaches the Live
 But the parent LiveView needs to know **which child** this grandchild belongs to in order to
 update the right nested list. There are two approaches:
 
-### Approach A: Grandchild sends a scoped message (Slidex pattern)
+### Approach A: Grandchild sends a scoped message
 
 The grandchild includes the parent child's ID in the message:
 
@@ -664,6 +664,10 @@ payload (e.g., `question_id`) to know which child's list to update.
 
 Reordering is one of the hardest parts to get right. Here is the pattern that works.
 
+> ⚠️ **Common mistake:** The parent LiveView receives a stale struct from the child message
+> and tries to preload new data from it. Always re-fetch from the database instead.
+> See Pitfall 8 in section 11.
+
 ### Context Module (Pure Logic)
 
 ```elixir
@@ -757,7 +761,7 @@ def handle_event("reorder", %{"direction" => direction}, socket) do
 end
 ```
 
-### How the Parent LiveView Handles It
+### How the Parent LiveView Handles It (Always Re-fetch from DB)
 
 ```elixir
 @impl true
@@ -774,11 +778,21 @@ def handle_info({:children_reordered, parent}, socket) do
 end
 ```
 
+> ⚠️ **Critical rule: Always re-fetch from the database. Never use the struct passed in the message for anything beyond identity lookup.**
+
 The parent re-fetches the entire parent record with preloaded, sorted children. This is
-the safest approach — it guarantees the order matches the database.
+the safest approach — it guarantees the order matches the database. The `parent` value
+in the message is only used to get the parent's ID, not the parent's data.
+
+**Why the struct in the message is stale:** The LiveComponent called `Reorder.move/3`
+which committed a DB transaction. The `parent` struct the component had in its assigns
+was loaded **before** the transaction. Using it directly would show the old order.
+Even running a preloader on the stale struct is wrong — the struct's
+associations are stale too. Only a fresh DB query reveals the new state.
 
 **Performance note:** For small lists (< 100 items) this is fine. For larger lists, you
-could optimize by only re-fetching the children list instead of the whole parent.
+could optimize by only re-fetching the children list instead of the whole parent. The
+principle is the same: re-query, don't reuse.
 
 ---
 
@@ -809,6 +823,9 @@ temp_child = %{
 - Use `System.unique_integer([:positive])` for uniqueness — it is process-local and fast
 - Never persist a temp ID to the database
 - The child LiveComponent checks `Map.has_key?(assigns.child, :temp_id)` to detect temp records
+- **Always set `position` on the temp record** from the start. Deferring position assignment
+  to save-time causes ordering corruption when multiple items are added before any save.
+  Temp records created without position will sort to the wrong place in the list.
 
 ### Detecting Temp Records
 
@@ -1056,7 +1073,60 @@ For cross-component, use callbacks.
 Temp IDs like `"temp_12345"` are not valid for `send_update/3` targeting. Use the helper
 function that generates a fallback UUID when neither `:id` nor `:temp_id` is present.
 
+### Process Rules (From Real-World Failures)
+
+These rules were learned from real failures. They govern how you build, not what you build.
+
+#### DO: Write the design doc before writing code
+
+A feature built without a design doc had a commit message that literally said "core
+functionality remains broken." The fix was to write the spec first, then implement each
+piece as a small, testable commit. The version with a design doc worked first time.
+
+**Rule of thumb:** If you can't write a one-page spec for what you're building, you don't
+understand it well enough to code it. Write the spec. Then implement.
+
+#### DO: Ship in small, atomic commits
+
+Each commit should add one thing you can describe without "and." A complex feature
+(join page, presence, live results, presenter controls) shipped as 8 separate commits.
+Each was independently testable and reviewable. Bugs were found in one commit without
+blocking the others.
+
+**Warning sign:** A commit message that starts with "lots of code" or contains "and"
+is too big. Split it.
+
+#### DO: Keep one responsibility per module
+
+A LiveView that does two jobs (e.g., admin controls + user interaction) will grow past
+the point where any agent or human can understand it. An 1100+ line module was deleted
+entirely and replaced with two ~200-line focused modules. The replacement worked; the
+monolith never did.
+
+**Rule of thumb:** If a module name contains "and", split it. If a file exceeds 300 lines
+for a LiveView or 200 lines for a LiveComponent, that is a signal it is doing too much.
+
+#### DO NOT: Show UI for features that are not implemented
+
+A form field was shown for an access code feature, but the code was never enforced.
+Users expected it to work, creating confusion. The fix: remove the UI entirely, keep
+only the model field for future use.
+
+**Rule of thumb:** Every visible UI element should correspond to a working feature.
+If a feature is deferred, hide the UI. Add it back when the feature actually works.
+
+#### DO NOT: Trust structs from child messages
+
+A struct received via `send(self(), {:message, struct})` is stale the moment the DB
+transaction commits. Never use it for data you just mutated. Use it only for identity
+(the ID), then re-query.
+
+**Rule of thumb:** The struct in the message tells you *which* record changed. The DB
+tells you *what* it looks like now. Always re-fetch.
+
 ---
+
+
 
 ## 11. Common Pitfalls
 
@@ -1190,13 +1260,63 @@ rendering LiveView, not arbitrary components in any tree.
 (the LiveView owns the full render tree). For LiveComponent → sibling, use the callback
 pattern or send up to the LiveView first.
 
+### Pitfall 8: Stale parent data after mutation or reorder
+
+**Symptom:** After reordering or creating a child, the UI shows the old order or missing data.
+
+**Root cause:** The parent LiveView received a message with a struct from the child, then
+tried to preload associations from that stale struct instead of re-fetching from the database.
+
+```elixir
+# BROKEN — uses stale struct from child message
+def handle_info({:children_reordered, parent}, socket) do
+  refreshed = preload_associations(parent)  # parent is STALE — shows old order
+  {:noreply, assign(socket, :children, refreshed.children)}
+end
+
+# FIXED — re-fetches from database using the parent ID
+def handle_info({:children_reordered, parent}, socket) do
+  refreshed = get_parent_by_id(parent.id)  # fresh query from DB
+  {:noreply, assign(socket, :children, refreshed.children)}
+end
+```
+
+**Fix:** Never trust a struct received in a message for anything other than identity lookup.
+Always re-query from the database. This applies to all handler types: reorder, create,
+update, and any other mutation that changes persisted data.
+
+### Pitfall 9: Monolithic LiveView trying to handle multiple roles
+
+**Symptom:** A single LiveView file grows to 800+ lines, becomes hard to debug, and
+core functionality stays broken for weeks.
+
+**Root cause:** A single module tried to handle both the admin/presenter experience
+and the end-user experience. The two roles have different state machines, different UI,
+and different authorization rules — but they were crammed into one file with conditional
+rendering. The fix was to delete the entire module and replace it with two focused
+LiveViews, each around 200 lines. The replacement worked; the monolith never did.
+
+**Warning signs:**
+- The module name contains "and" (e.g., AdminAndUserPanel)
+- There is `if @is_admin` / `if @is_user` branching throughout the render/1 function
+- The file exceeds ~300 lines and mixes distinct user roles
+- Development velocity slows because changes for one role break the other
+
+**Fix:** Split by role or responsibility before the module grows unwieldy. A LiveView
+should have one job. If the same page serves both admin and user, use polymorphic
+render branches in separate function components, not in the LiveView itself. If that
+still grows too large, split into separate routes.
+
+**Good practice for sizing:** If you cannot describe what a module does in one sentence
+without using "and", it is too large.
+
 ---
 
 ## 12. Testing the Pattern
 
 ### Testing Philosophy
 
-Per Slidex's `testing-posture.md`: pure functions first, LiveView tests minimal.
+Pure functions first, LiveView tests minimal.
 Test the context module thoroughly. Test LiveViews only for basic rendering and interaction.
 
 ### Context Tests
@@ -1358,6 +1478,10 @@ end
 
 ## 14. Implementation Checklist
 
+### Before You Write Code
+- [ ] Design doc written and reviewed (one page, covers: data model, LiveView/component tree, message flow, reordering strategy)
+- [ ] Implementation broken into small, independent commits (each describable without "and")
+
 ### Schema & Context
 - [ ] Schema uses `:binary_id` primary key and `@foreign_key_type :binary_id`
 - [ ] `position` field exists as integer with default 0
@@ -1369,11 +1493,13 @@ end
 - [ ] Next position computed via `aggregate(:max, :position)`
 
 ### Parent LiveView
+- [ ] LiveView has a single responsibility (< 300 lines, no "and" in its purpose)
+- [ ] All `handle_info` handlers re-fetch from DB after mutation (never use struct from message)
 - [ ] Fetches parent with preloaded children on mount
 - [ ] Renders children via `Enum.with_index` + `.live_component`
 - [ ] Passes `idx`, `count`, `current_scope` to each child
 - [ ] `child_id/1` handles real IDs, temp IDs, and fallback
-- [ ] `handle_event("add_child", ...)` creates temp records with `temp_id`
+- [ ] `handle_event("add_child", ...)` creates temp records with `temp_id` and correct `position`
 - [ ] `handle_info({:child_created, ...})` replaces temp with persisted
 - [ ] `handle_info({:child_updated, ...})` updates matching record
 - [ ] `handle_info({:child_deleted, ...})` removes by id or temp_id
@@ -1397,6 +1523,7 @@ end
 - [ ] Or uses callback pattern for flexibility
 
 ### Tests
+- [ ] Each commit in the sequence has its own tests (don't defer all tests to a "tests" commit later)
 - [ ] Context tests for create with position assignment
 - [ ] Context tests for reorder (move higher, lower, boundary, normalization)
 - [ ] Context tests for authorization (rejects wrong scope)
