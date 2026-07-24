@@ -2672,56 +2672,107 @@ end
 ### Before You Write Code
 - [ ] Design doc written and reviewed (one page, covers: data model, LiveView/component tree, message flow, reordering strategy)
 - [ ] Implementation broken into small, independent commits (each describable without "and")
+- [ ] Each commit has its own tests — do not defer all tests to a "tests" commit
+
+### Router & Setup
+- [ ] Live route placed in correct `live_session` scope (authenticated or public)
+- [ ] `live_session` name defined once; all routes in a single block
+- [ ] `mix ecto.create` and `mix ecto.migrate` succeed
+- [ ] Migration uses `:binary_id` primary key and `references(type: :binary_id, on_delete: :delete_all)`
+- [ ] Foreign key and position columns indexed
+- [ ] Phoenix 1.8 template wraps content in `<Layouts.app>`
 
 ### Schema & Context
 - [ ] Schema uses `:binary_id` primary key and `@foreign_key_type :binary_id`
 - [ ] `position` field exists as integer with default 0
+- [ ] `lock_version` column added if using optimistic locking for concurrent edits
 - [ ] Programmatic fields set on struct, not in `cast/2`
 - [ ] Context module has `list_*`, `create_*`, `update_*`, `delete_*`, `reorder` functions
 - [ ] Authorization checked in every mutation
 - [ ] Reorder module is atomic with transaction and position normalization
 - [ ] Context `get_*!` preloads children with correct ordering
 - [ ] Next position computed via `aggregate(:max, :position)`
+- [ ] Preloader module exists and is used consistently across all handlers
+- [ ] `Preloader.with_preloads/1` handles both queries and structs
+- [ ] Preloader defines child/grandchild ordering (position ASC, inserted_at ASC)
 
 ### Parent LiveView
 - [ ] LiveView has a single responsibility (< 300 lines, no "and" in its purpose)
 - [ ] All `handle_info` handlers re-fetch from DB after mutation (never use struct from message)
-- [ ] Fetches parent with preloaded children on mount
-- [ ] Renders children via `Enum.with_index` + `.live_component`
+- [ ] Fetches parent with Preloader on mount
+- [ ] Direct assign approach: renders children via `Enum.with_index` + `.live_component`
+- [ ] Stream approach: uses `stream(socket, :children, ...)` and `@streams.children` in template
+- [ ] Stream approach: template has `phx-update="stream"` on the container
 - [ ] Passes `idx`, `count`, `current_scope` to each child
 - [ ] `child_id/1` handles real IDs, temp IDs, and fallback
 - [ ] `handle_event("add_child", ...)` creates temp records with `temp_id` and correct `position`
-- [ ] `handle_info({:child_created, ...})` replaces temp with persisted
+- [ ] `handle_info({:child_created, ...})` replaces temp with persisted (direct assign or stream_insert)
 - [ ] `handle_info({:child_updated, ...})` updates matching record
 - [ ] `handle_info({:child_deleted, ...})` removes by id or temp_id
-- [ ] `handle_info({:children_reordered, ...})` re-fetches from DB
-- [ ] Flash messages only for persisted operations
+- [ ] `handle_info({:children_reordered, ...})` re-fetches from DB via Preloader
+- [ ] Flash messages only for persisted operations (temp operations: no flash)
+- [ ] `send_update/2` used for targeted child updates (highlight, toggle) when appropriate
+- [ ] PubSub subscribed if multi-user coordination needed
+- [ ] `:pending_refresh` flag implemented for in-progress edit protection under PubSub
 
 ### Child LiveComponent
 - [ ] `use MyAppWeb, :live_component`
 - [ ] `mount/1` initializes transient state (editing, body, results)
-- [ ] `update/2` merges assigns, preserves edit state during editing
+- [ ] `update/2` merges assigns, preserves edit state during editing (editing guard pattern)
+- [ ] `assign_new/3` used for initialization-only assigns where appropriate
 - [ ] Detects temp records via `Map.has_key?(assigns.child, :temp_id)`
 - [ ] All event handlers use `phx-target={@myself}`
 - [ ] Save handler distinguishes create vs update via `is_temporary`
+- [ ] Save handler preserves form state on `{:error, changeset}` (error recovery)
+- [ ] Save handler handles `{:error, :forbidden}` without losing form state
 - [ ] Delete handler sends `temp_id` or persisted `id` appropriately
 - [ ] Reorder handler calls context, sends message to parent
-- [ ] Empty body guarded with flash message
+- [ ] Empty body guarded with validation error (keep form open, do not collapse)
 
 ### Grandchild LiveComponent (if nested)
 - [ ] Same structure as Child LiveComponent
-- [ ] Message includes foreign key for parent routing
-- [ ] Or uses callback pattern for flexibility
+- [ ] Message includes foreign key for parent routing (Approach A)
+- [ ] Or uses callback pattern for flexibility (Approach B)
+- [ ] Diagram verified: `send(self(), ...)` goes directly to LiveView, not through Child LC
+
+### PubSub & Multi-User (if applicable)
+- [ ] LiveView subscribes on mount (only for relevant live_actions)
+- [ ] `update/2` editing guard protects user input during broadcasts
+- [ ] Temp record isolation: temp records survive PubSub-triggered re-renders
+- [ ] Conflict resolution strategy chosen (optimistic locking, last-writer-wins, etc.)
+- [ ] `:pending_refresh` pattern implemented if broadcasts arrive during editing
+
+### Error Recovery
+- [ ] Validation errors keep form open with inline error display (not just flash)
+- [ ] Authorization failures show clear message and preserve form state
+- [ ] Constraint violations handled via changeset `unique_constraint` / `foreign_key_constraint`
+- [ ] Context module uses error tuples (`{:error, reason}`), never raises
+- [ ] LiveView matches on error tuples in `handle_info` handlers
+- [ ] Temp records are removed on persistent failure (not left orphaned)
+
+### No-Negotiables
+- [ ] No business logic in LiveView or LiveComponent — all in context module
+- [ ] Template uses `<.form for={@form}>`, not `<.form for={@changeset}>`
+- [ ] All component events use `phx-target={@myself}`
+- [ ] No `<script>` tags in HEEx templates — all JS in `assets/js/`
+- [ ] No deprecated `live_redirect` or `live_patch` — use `<.link navigate={}>`/`<.link patch={}>`
+- [ ] No unimplemented UI features visible
+- [ ] `mix precommit` passes before final commit
 
 ### Tests
-- [ ] Each commit in the sequence has its own tests (don't defer all tests to a "tests" commit later)
 - [ ] Context tests for create with position assignment
 - [ ] Context tests for reorder (move higher, lower, boundary, normalization)
 - [ ] Context tests for authorization (rejects wrong scope)
+- [ ] Context tests for validation errors
 - [ ] LiveView test: add button creates temp record
 - [ ] LiveView test: save persists record
 - [ ] LiveView test: delete removes record
 - [ ] LiveView test: reorder changes order
+- [ ] LiveView test: validation error keeps form open (if error recovery implemented)
+- [ ] Stream test: stream count tracked correctly (if using streams)
+- [ ] Stream test: reorder triggers stream reset (if using streams)
+- [ ] PubSub test: broadcast updates children (if using PubSub)
+- [ ] PubSub test: temp records survive broadcast (if using PubSub)
 
 ---
 
