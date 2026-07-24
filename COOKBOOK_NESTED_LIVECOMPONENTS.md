@@ -763,20 +763,51 @@ synchronize the component's local state with the parent's assigns.
 re-render. Your `update/2` must be idempotent — calling it with the same assigns must
 produce the same result.
 
+**Basic pattern** (matches the Slidex codebase):
+
 ```elixir
 def update(assigns, socket) do
-  # Always merge fresh parent assigns
-  socket = assign(socket, assigns)
+  is_temporary = Map.has_key?(assigns.child, :temp_id)
+  body = assigns.child.body || ""
+  editing = is_temporary or body == ""
 
-  # Only overwrite local state if the component isn't currently being edited
-  # (otherwise the user loses their unsaved work)
+  # If this child has its own children (grandchildren), carry them through
+  grandchildren = Map.get(assigns.child, :grandchildren) || []
+
+  {:ok,
+   socket
+   |> assign(assigns)
+   |> assign(:is_temporary, is_temporary)
+   |> assign(:editing, editing)
+   |> assign(:body, body)
+   |> assign(:grandchildren, grandchildren)}
+end
+```
+
+**Editing-guard pattern (recommended improvement):** The basic pattern always overwrites
+`:editing` from the child's state. This means a PubSub broadcast or parent re-render
+during editing will collapse the user's form. If you want edit-state persistence across
+re-renders, guard the overwrite:
+
+```elixir
+def update(assigns, socket) do
+  is_temporary = Map.has_key?(assigns.child, :temp_id)
+  body = assigns.child.body || ""
+  grandchildren = Map.get(assigns.child, :grandchildren) || []
+
+  socket =
+    socket
+    |> assign(assigns)
+    |> assign(:is_temporary, is_temporary)
+    |> assign(:grandchildren, grandchildren)
+
+  # Preserve editing state if user is mid-edit
   socket =
     if socket.assigns.editing do
-      socket  # Preserve local edit state
-    else
       socket
-      |> assign(:body, assigns.child.body || "")
-      |> assign(:editing, Map.has_key?(assigns.child, :temp_id))
+    else
+      assign(socket, :body, body)
+      |> assign(:editing, is_temporary or body == "")
     end
 
   {:ok, socket}
@@ -838,6 +869,31 @@ parent LiveView.
 </.button>
 ```
 
+### Edit
+
+```elixir
+@impl true
+def handle_event("edit", _params, socket) do
+  {:noreply, assign(socket, :editing, true)}
+end
+```
+
+### Cancel Edit
+
+Reset component state to the persisted values when the user cancels:
+
+```elixir
+@impl true
+def handle_event("cancel_edit", _params, socket) do
+  {:noreply,
+   socket
+   |> assign(:editing, false)
+   |> assign(:body, socket.assigns.child.body || "")
+   |> assign(:results, [])
+   |> assign(:show_results, false)}
+end
+```
+
 ### Save (Create or Update)
 
 ```elixir
@@ -873,7 +929,37 @@ def handle_event("save", _params, socket) do
       end
   end
 end
+
+defp clear_edit(socket) do
+  socket
+  |> assign(:editing, false)
+  |> assign(:results, [])
+  |> assign(:show_results, false)
+end
 ```
+
+### Add Grandchild (if this component manages a nested list)
+
+If the child LiveComponent renders its own grandchildren, the add-grandchild event creates
+a temp record locally and sends it to the parent LiveView to insert into the nested list:
+
+```elixir
+@impl true
+def handle_event("add_grandchild", _params, socket) do
+  new_grandchild = %{
+    temp_id: "temp_gc_#{System.unique_integer([:positive])}",
+    body: "",
+    editing: true
+  }
+
+  send(self(), {:add_temporary_grandchild, socket.assigns.child, new_grandchild})
+
+  {:noreply, socket}
+end
+```
+
+The parent receives `{:add_temporary_grandchild, child, new_grandchild}` and inserts
+the temp grandchild into the matching child's grandchildren list (see Section 4).
 
 ### Delete
 
