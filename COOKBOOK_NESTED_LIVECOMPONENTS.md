@@ -2031,6 +2031,69 @@ For cross-component, use callbacks.
 Temp IDs like `"temp_12345"` are not valid for `send_update/3` targeting. Use the helper
 function that generates a fallback UUID when neither `:id` nor `:temp_id` is present.
 
+### DO: Understand flash message lifecycle
+
+Flash messages set via `put_flash/3` in a LiveView `handle_info` callback survive for
+exactly one render cycle. After the next user event (click, form submit, keydown), the
+flash is cleared. This means:
+
+- A flash set during `handle_info({:child_created, ...})` will be shown to the user
+- If the user then clicks "Add Child", that click clears the flash
+- Set flashes at the LAST possible moment — before the final `{:noreply, socket}`
+
+```elixir
+# CORRECT — flash set before the final noreply
+{:noreply,
+ socket
+ |> put_flash(:info, "Created")
+ |> assign(:children, children)}
+
+# WRONG — flash set after a send() but before more work is fragile
+send(self(), {:child_created, saved, temp_id})
+put_flash(socket, :info, "Created")
+# ... more work can clear the flash ...
+```
+
+### DO: Wrap templates in Layouts.app (Phoenix 1.8+)
+
+Every LiveView template must be wrapped in `<Layouts.app>`:
+
+```heex
+<Layouts.app flash={@flash} current_scope={@current_scope}>
+  ...your content...
+</Layouts.app>
+```
+
+The `Layouts` module is aliased in `MyAppWeb`'s `html_helpers` block. Do not call
+`<.flash_group>` outside of `layouts.ex`.
+
+### DO: Use `mix precommit` before finishing
+
+Run `mix precommit` (or the project's equivalent) before completing work. This runs
+the compiler, linter (credo), security audit (mix_audit), formatter, and tests in one
+pass. Fix any issues before committing.
+
+### Phoenix v1.8 Framework Rules
+
+These rules are specific to Phoenix 1.8+ and `phx.gen.auth` projects:
+
+- **`<.icon>` over Heroicons modules**: Use `<.icon name="hero-x-mark" class="w-5 h-5"/>`
+  from `core_components.ex` for icons. Never import `Heroicons` modules directly.
+- **`<.input>` over raw HTML**: Use the imported `<.input>` component for all form inputs.
+  If you override classes (e.g., `<.input class="myclass">`), you must provide full styling.
+- **No inline `<script>` tags**: All custom JavaScript goes in `assets/js/` and integrates
+  via `app.js`. Never write `<script>custom js</script>` in HEEx templates.
+- **No external vendor scripts**: Do not add external `<script src>` or `<link href>`
+  references in layouts. Import vendor dependencies through `app.js` and `app.css`.
+- **Streams for dynamic collections**: Use `phx-update="stream"` and `@streams` for
+  dynamic lists that users modify. Avoid `phx-update="append"` or `"prepend"` (deprecated).
+- **One `live_session` name per scope**: A `live_session :current_user` can only be
+  defined once. Group all routes sharing the same scope in one block. Do not duplicate
+  the name.
+- **`current_scope`, not `current_user`**: `phx.gen.auth` assigns `current_scope`,
+  not `current_user`. Access the user via `@current_scope.user` in templates and
+  `socket.assigns.current_scope` in LiveViews.
+
 ### Process Rules (From Real-World Failures)
 
 These rules were learned from real failures. They govern how you build, not what you build.
