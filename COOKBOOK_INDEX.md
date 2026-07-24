@@ -2,7 +2,29 @@
 
 Questions a dev asks. Each links to the relevant section in `COOKBOOK_NESTED_LIVECOMPONENTS.md`. Read only what your task needs.
 
+## Reference Implementation
+
+All patterns extracted from [Slidex](https://github.com/greecex/slidex), a Phoenix LiveView tech demo (stable, frozen). Use permalinks to see exact production code:
+
+| File | Covers |
+|------|--------|
+| [PollLive.Questions](https://github.com/greecex/slidex/blob/main/lib/slidex_web/live/poll_live/questions.ex) | Parent LiveView — mount, render, all handle_info handlers, temp CRUD |
+| [QuestionLive](https://github.com/greecex/slidex/blob/main/lib/slidex_web/live/poll_live/components/question_live.ex) | Child LiveComponent — update/2, edit/save/delete, reorder, add-grandchild |
+| [OptionLive](https://github.com/greecex/slidex/blob/main/lib/slidex_web/live/poll_live/components/option_live.ex) | Grandchild LiveComponent — editing guard, save helpers, delete |
+| [Preloader](https://github.com/greecex/slidex/blob/main/lib/slidex/preloader.ex) | Dispatch-per-struct preloading with post-sort |
+| [Reorder](https://github.com/greecex/slidex/blob/main/lib/slidex/polling/reorder.ex) | Atomic swap with position normalization |
+| [Polling context](https://github.com/greecex/slidex/blob/main/lib/slidex/polling.ex) | All CRUD functions, authorization, position helper |
+| [Authorization](https://github.com/greecex/slidex/blob/main/lib/slidex/authorization.ex) | Scope-based user authorization chain |
+| [Question schema](https://github.com/greecex/slidex/blob/main/lib/slidex/polling/question.ex) | binary_id, has_many :options, cast_assoc |
+| [Option schema](https://github.com/greecex/slidex/blob/main/lib/slidex/polling/option.ex) | binary_id, belongs_to, extra fields |
+| [Questions migration](https://github.com/greecex/slidex/blob/main/priv/repo/migrations/20260606143924_create_questions.exs) | composite index, on_delete cascade |
+| [Options migration](https://github.com/greecex/slidex/blob/main/priv/repo/migrations/20260606144051_create_options.exs) | same pattern |
+| [Router](https://github.com/greecex/slidex/blob/main/lib/slidex_web/router.ex) | live_session scopes, route placement |
+| [PollLive.Index (streams)](https://github.com/greecex/slidex/blob/main/lib/slidex_web/live/poll_live/index.ex) | Stream usage in a list view |
+
 ---
+
+
 
 ## Architecture & Setup
 

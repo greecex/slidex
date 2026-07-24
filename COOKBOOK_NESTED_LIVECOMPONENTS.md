@@ -154,6 +154,8 @@ end
   must be in a single block.
 - Controller routes must use the plug pipeline (`:require_authenticated_user`),
   not `live_session`.
+
+> Reference: [Slidex router](https://github.com/greecex/slidex/blob/main/lib/slidex_web/router.ex)
 - If you see `current_scope` errors, check the route is in the correct `live_session`
   and the correct pipeline.
 
@@ -202,6 +204,9 @@ defmodule MyApp.Repo.Migrations.CreateQuestions do
   end
 end
 ```
+
+> Reference: [questions migration](https://github.com/greecex/slidex/blob/main/priv/repo/migrations/20260606143924_create_questions.exs),
+> [options migration](https://github.com/greecex/slidex/blob/main/priv/repo/migrations/20260606144051_create_options.exs)
 
 **Key migration rules:**
 - `primary_key: false` on the table, then `:binary_id, primary_key: true` on the id column
@@ -294,6 +299,9 @@ end
 - Position is computed by the context module (via `aggregate(:max, :position)`), set on the struct via struct literal, and listed in cast for changeset completeness. **Never accept position from user params** — the LiveView context call sets it server-side.
 - `on_delete: :delete_all` on the parent's `has_many` so deleting a parent cascades
 - `cast_assoc(:children)` enables nested saves but bypasses the component-message pattern. Prefer saving children independently via context calls unless you have a batch-save use case.
+
+> Reference: [Question schema](https://github.com/greecex/slidex/blob/main/lib/slidex/polling/question.ex),
+> [Option schema](https://github.com/greecex/slidex/blob/main/lib/slidex/polling/option.ex)
 
 ### 3.5. The Preloader Strategy
 
@@ -401,6 +409,8 @@ refreshed =
 4. All ordered by `position ASC, inserted_at ASC`
 5. (Optional) Any additional associations the LiveComponents need for display
 
+> Reference: [Slidex Preloader](https://github.com/greecex/slidex/blob/main/lib/slidex/preloader.ex)
+
 ---
 
 ## 4. Parent LiveView: Owning the List
@@ -435,6 +445,9 @@ end
 **Key rule:** Always preload children with ordering on mount. The parent view should never
 need to query per-child. The assign name `:children` here is generic — substitute your
 actual association name (e.g., `:questions`, `:options`, `:items`).
+
+> Reference: [PollLive.Questions](https://github.com/greecex/slidex/blob/main/lib/slidex_web/live/poll_live/questions.ex)
+> — parent LiveView with mount, all handle_info handlers, temp CRUD
 
 ### Render
 
@@ -753,6 +766,9 @@ defmodule MyAppWeb.ParentLive.Components.ChildLive do
   end
 end
 ```
+
+> Reference: [QuestionLive](https://github.com/greecex/slidex/blob/main/lib/slidex_web/live/poll_live/components/question_live.ex)
+> — child LiveComponent: update/2, edit/save/delete, reorder, add-grandchild
 
 ### Update Logic
 
@@ -1122,6 +1138,9 @@ Approach A (scoped messages) is simpler and more explicit. For reusable componen
 that might be mounted anywhere (varying parent context), use Approach B. For 3+ levels
 of nesting (LiveView → LC → LC → LC), Approach B scales better because each level
 doesn't need to know its parent's parent's structure.
+
+> Reference: [OptionLive](https://github.com/greecex/slidex/blob/main/lib/slidex_web/live/poll_live/components/option_live.ex)
+> — grandchild LiveComponent: editing guard, save helpers, delete, reorder
 
 ### Grandchild update/2 (Editing Guard)
 
@@ -1498,6 +1517,9 @@ that users will grow, reorder frequently, or work with on mobile connections.
 You can also start with direct assigns during development and refactor to streams
 later — the data flow is identical, only the socket operations change.
 
+> Reference: [PollLive.Index](https://github.com/greecex/slidex/blob/main/lib/slidex_web/live/poll_live/index.ex)
+> — uses streams for a poll listing (flat list without components)
+
 ---
 
 This is the complete specification of how messages flow. Every message is documented with
@@ -1693,6 +1715,9 @@ which committed a DB transaction. The `parent` struct the component had in its a
 was loaded **before** the transaction. Using it directly would show the old order.
 Even running a preloader on the stale struct is wrong — the struct's
 associations are stale too. Only a fresh DB query reveals the new state.
+
+> Reference: [Reorder module](https://github.com/greecex/slidex/blob/main/lib/slidex/polling/reorder.ex)
+> — atomic swap with position normalization
 
 **Performance note:** For small lists (< 100 items) this is fine. For larger lists, you
 could optimize by only re-fetching the children list instead of the whole parent. The
@@ -2157,6 +2182,9 @@ end
 ---
 
 All DB operations live in a context module. The LiveView never runs queries directly.
+
+> Reference: [Polling context](https://github.com/greecex/slidex/blob/main/lib/slidex/polling.ex),
+> [Authorization](https://github.com/greecex/slidex/blob/main/lib/slidex/authorization.ex)
 
 ## 13. The Context Module in Depth
 
