@@ -100,7 +100,7 @@ understand the routing constraints.
 | Requirement | Minimum Version | Notes |
 |-------------|-----------------|-------|
 | Phoenix | 1.8+ | Uses `Layouts.app` and scoped `live_session` |
-| Elixir | 1.17+ | Pattern matching on binary IDs, new set-theoretic types |
+| Elixir | 1.15+ | Sets the minimum for Phoenix 1.8 compatibility |
 | Ecto | 3.0+ | `has_many` with `on_delete: :delete_all` |
 | phx.gen.auth | (included) | Provides `current_scope`, `live_session` scopes in router |
 
@@ -198,8 +198,7 @@ defmodule MyApp.Repo.Migrations.CreateQuestions do
       timestamps(type: :utc_datetime_usec)
     end
 
-    create index(:questions, [:poll_id])
-    create index(:questions, [:position])
+    create index(:questions, [:poll_id, :position])
   end
 end
 ```
