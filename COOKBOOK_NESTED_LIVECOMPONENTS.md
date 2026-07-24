@@ -1123,10 +1123,112 @@ that might be mounted anywhere (varying parent context), use Approach B. For 3+ 
 of nesting (LiveView → LC → LC → LC), Approach B scales better because each level
 doesn't need to know its parent's parent's structure.
 
+### Grandchild update/2 (Editing Guard)
+
+The grandchild uses the same editing-guard pattern as the child, but often in a more
+compact form. The real Slidex OptionLive uses a `should_edit` check:
+
+```elixir
+@impl true
+def update(assigns, socket) do
+  grandchild = assigns.grandchild
+  is_temporary = Map.has_key?(grandchild, :temp_id)
+  body = grandchild.body || ""
+
+  socket =
+    socket
+    |> assign(assigns)
+    |> assign(:is_temporary, is_temporary)
+    |> assign(:grandchild, grandchild)
+
+  # Keep editing if already editing, OR auto-start for temp+empty records
+  should_edit = socket.assigns.editing or (is_temporary and body == "")
+
+  socket =
+    if should_edit do
+      socket  # Preserve body and any extra fields during edit
+    else
+      assign(socket, :body, body)
+      # Add any other field reset here (e.g., :is_correct, :some_toggle)
+    end
+
+  {:ok, assign(socket, :editing, should_edit)}
+end
+```
+
+### Grandchild Save (Private Helpers)
+
+Grandchildren often have extra fields beyond body (e.g., `is_correct` toggle). The save
+handler typically delegates to private helpers for clarity:
+
+```elixir
+@impl true
+def handle_event("save", _params, socket) do
+  body = String.trim(socket.assigns.body || "")
+
+  cond do
+    body == "" ->
+      {:noreply, put_flash(socket, :error, "Body cannot be empty")}
+
+    socket.assigns.is_temporary ->
+      save_new_record(socket, body)
+
+    true ->
+      save_existing_record(socket, body)
+  end
+end
+
+defp save_new_record(socket, body) do
+  scope = socket.assigns.current_scope
+  parent_child = socket.assigns.parent_child
+  extra_attrs = %{body: body}  # Merge domain-specific fields here
+
+  case Polling.create_grandchild(scope, parent_child, extra_attrs) do
+    {:ok, persisted} ->
+      send(self(), {:grandchild_created, persisted,
+                    temp_id: socket.assigns.grandchild.temp_id})
+      {:noreply, assign(socket, :editing, false)}
+
+    {:error, _changeset} ->
+      {:noreply, put_flash(socket, :error, "Could not save")}
+  end
+end
+
+defp save_existing_record(socket, body) do
+  scope = socket.assigns.current_scope
+  extra_attrs = %{body: body}  # Merge domain-specific fields here
+
+  case Polling.update_grandchild(scope, socket.assigns.grandchild, extra_attrs) do
+    {:ok, updated} ->
+      send(self(), {:grandchild_updated, updated})
+      {:noreply, assign(socket, :editing, false)}
+
+    {:error, _changeset} ->
+      {:noreply, put_flash(socket, :error, "Could not update")}
+  end
+end
+```
+
+**Grandchild delete** follows the same temp/persisted pattern. After a persisted delete,
+reset `:editing` state:
+
+```elixir
+def handle_event("delete", _params, socket) do
+  if socket.assigns.is_temporary do
+    send(self(), {:grandchild_deleted, socket.assigns.grandchild.temp_id})
+    {:noreply, socket}
+  else
+    Polling.delete_grandchild(socket.assigns.current_scope, socket.assigns.grandchild)
+    send(self(), {:grandchild_deleted, socket.assigns.grandchild.id})
+    {:noreply, assign(socket, :editing, false)}
+  end
+end
+```
+
 ### Grandchild Render Pattern
 
 ```elixir
-<%= for {grandchild, idx} <- Enum.with_index(@options) do %>
+<%= for {grandchild, idx} <- Enum.with_index(@grandchildren) do %>
   <.live_component
     module={GrandchildLive}
     id={"grandchild-#{grandchild_id(grandchild)}"}
@@ -1134,7 +1236,7 @@ doesn't need to know its parent's parent's structure.
     current_scope={@current_scope}
     parent_child={@child}        # <--- so grandchild knows its parent
     idx={idx}
-    count={length(@options)}
+    count={length(@grandchildren)}
   />
 <% end %>
 ```
