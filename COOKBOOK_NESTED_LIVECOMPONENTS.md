@@ -293,6 +293,67 @@ end
 - The `position` field is an integer, default 0
 - `on_delete: :delete_all` on the parent's `has_many` so deleting a parent cascades
 
+### 3.5. The Preloader Strategy
+
+Every time the parent LiveView needs the child list (on mount, after reorder, after
+PubSub broadcast), it must fetch the parent WITH its children preloaded and ordered.
+Centralize this logic in a dedicated `Preloader` module to avoid scattered Ecto queries:
+
+```elixir
+defmodule MyApp.Preloader do
+  alias MyApp.{Campaigns, Repo}
+
+  @doc """
+  Eager-loads the full tree: parent → children → grandchildren, all ordered.
+  """
+  def with_preloads(%Ecto.Query{} = query) do
+    query
+    |> Repo.preload(children: {ordered_children(), [grandchildren: ordered_grandchildren()]})
+  end
+
+  def with_preloads(%struct_module{} = record) do
+    Repo.preload(record, children: {ordered_children(), [grandchildren: ordered_grandchildren()]})
+  end
+
+  defp ordered_children do
+    {from(c in Child, order_by: [asc: c.position, asc: c.inserted_at]), []}
+  end
+
+  defp ordered_grandchildren do
+    from(g in Grandchild, order_by: [asc: g.position, asc: g.inserted_at])
+  end
+end
+```
+
+**Usage in the LiveView:**
+
+```elixir
+# On mount
+parent =
+  socket.assigns.current_scope
+  |> Campaigns.get_parent!(parent_id)
+  |> Preloader.with_preloads()
+
+# After reorder (re-fetch from DB)
+refreshed =
+  socket.assigns.current_scope
+  |> Campaigns.get_parent!(parent.id)
+  |> Preloader.with_preloads()
+```
+
+**Why a Preloader module?**
+- Single source of truth for the preload shape — one change propagates everywhere
+- Guarantees consistent ordering (position, then inserted_at as tiebreaker)
+- Handles both query and struct inputs transparently
+- Avoids N+1 queries in templates — all data is loaded before rendering
+- Easy to extend when new associations are added (e.g., `:attachments`)
+
+**What gets preloaded:**
+1. The parent record itself
+2. All children, ordered by `position ASC, inserted_at ASC`
+3. All grandchildren of each child, ordered by `position ASC, inserted_at ASC`
+4. (Optional) Any additional associations the LiveComponents need for display
+
 ---
 
 ## 4. Parent LiveView: Owning the List
@@ -449,11 +510,79 @@ grandchildren, include the intermediate scope to target the right parent:
 
 ```elixir
 # From grandchild, received by parent LiveView
-def handle_info({:child_option_created, child_id, new_option, temp_id}, socket) do
-  # Find the child in the list by child_id, update its options
+def handle_info({:grandchild_created, new_grandchild, parent_child_id: parent_child_id, temp_id: temp_id}, socket) do
+  # Find the child in the list by parent_child_id, update its grandchildren
   ...
 end
 ```
+
+### send_update/2: Targeted Parent-to-Child Updates
+
+Sometimes the parent LiveView needs to push a change to a specific child LiveComponent
+without re-rendering the entire list. `send_update/2` sends a message that triggers the
+target component's `update/2` callback with new assigns:
+
+```elixir
+# In the parent LiveView — push a highlight to a specific child
+def handle_info({:child_highlight, child_id}, socket) do
+  send_update(ChildLive,
+    id: "child-#{child_id}",
+    highlighted: true
+  )
+
+  {:noreply, socket}
+end
+```
+
+The child LiveComponent's `update/2` receives the new `highlighted` assign:
+
+```elixir
+def update(assigns, socket) do
+  socket = assign(socket, assigns)
+
+  socket =
+    if assigns[:highlighted] do
+      assign(socket, :highlight_class, "ring-2 ring-blue-500")
+    else
+      assign(socket, :highlight_class, "")
+    end
+
+  {:ok, socket}
+end
+```
+
+**Rules for send_update/2:**
+- Only works for components that are **direct children** of the calling LiveView's render tree
+- The `id` must match the component's `id` in the template exactly
+- Cannot reach into a grandchild from a LiveView if the grandchild is inside a child LC
+  (see Pitfall 7). Instead, target the child LC, which then passes the update down
+- It is NOT for child→parent communication — use `send(self(), msg)` for that
+
+**send_update/2 is the right tool when:**
+- You need to highlight one item after an external event (PubSub, async task)
+- You want to toggle a single component's state without re-rendering siblings
+- You're responding to a timer, animation trigger, or non-CRUD event
+
+**send_update/2 is the WRONG tool when:**
+- The child's data has changed in the database — update the parent's list assign instead
+- You need to communicate upward — use `send(self(), msg)`
+- You need to update a grandchild across component boundaries — use the callback pattern
+
+### Phoenix 1.8 Layouts Template Structure
+
+The render template for the parent LiveView uses `<Layouts.app>` as the root element,
+which is a Phoenix 1.8 requirement:
+
+```heex
+<Layouts.app flash={@flash} current_scope={@current_scope}>
+  ...
+</Layouts.app>
+```
+
+The `Layouts` module is automatically aliased in `MyAppWeb`'s `html_helpers` block
+(generated by `phx.new`). The `current_scope` assign comes from `phx.gen.auth`'s
+`on_mount` hooks. If you generated your app with an older Phoenix version, ensure
+your layouts module follows Phoenix 1.8 conventions.
 
 ---
 
@@ -526,6 +655,38 @@ def update(assigns, socket) do
   {:ok, socket}
 end
 ```
+
+#### Preserving State with assign_new/3
+
+`assign_new/3` is an alternative to the manual editing-guard pattern. It sets an assign
+only if it is NOT already set on the socket. This is useful for values that should survive
+across parent re-renders but be initialized on mount:
+
+```elixir
+def update(assigns, socket) do
+  socket = assign(socket, assigns)
+
+  # Only set :body if it hasn't been set yet (e.g., on first render)
+  socket = assign_new(socket, :body, fn -> assigns.child.body || "" end)
+
+  # :editing starts false, then changes via user interaction
+  socket = assign_new(socket, :editing, fn ->
+    Map.has_key?(assigns.child, :temp_id)
+  end)
+
+  {:ok, socket}
+end
+```
+
+`assign_new/3` is useful when the LiveComponent renders child LiveComponents of its own
+and you want those grandchildren to keep their state across update cycles. However, for
+the basic editing-guard pattern, the explicit `if socket.assigns.editing` check is more
+reliable because it handles the case where the parent intentionally resets a child's
+state (e.g., after a "cancel edit" action).
+
+**Rule of thumb:** Use `assign_new/3` for initialization-only assigns (default values,
+derived data). Use the `editing` guard pattern for user-edit state that must survive
+parent re-renders.
 
 ### Handling Events
 
