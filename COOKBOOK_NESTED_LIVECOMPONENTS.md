@@ -487,64 +487,97 @@ end
 ## 5. Grandchild LiveComponent: Two Levels Deep
 
 This is where the pattern extends: a LiveComponent that renders its own list of child
-LiveComponents. The same principles apply, but the communication chain becomes:
+LiveComponents. The same principles apply, but now the communication has a direct path:
 
 ```
-Grandchild LC  ──send──►  Child LC  ──send──►  Parent LiveView
+Grandchild LC ──send(self(), ...)──► Parent LiveView (direct, one hop)
 ```
 
-### The Challenge
+### Key Insight: Direct-to-Parent Communication
 
-A grandchild LiveComponent cannot directly tell the parent LiveView "I was updated" in a way
-that updates the correct child's state in the parent's list. The grandchild's `self()` still
-points to the **parent LiveView**, so `send(self(), ...)` still reaches the LiveView directly.
+A grandchild LiveComponent's `self()` returns the **parent LiveView PID** (not a component PID).
+This means `send(self(), ...)` from ANY depth reaches the LiveView directly:
 
-But the parent LiveView needs to know **which child** this grandchild belongs to in order to
-update the right nested list. There are two approaches:
+```
+Grandchild LC ──send(self(), {:grandchild_created, ...})──► Parent LiveView
+                                                            (direct, not via Child LC)
+```
 
-### Approach A: Grandchild sends a scoped message
+This is critical to understand: messages from grandchildren do NOT route through the
+intermediate child LiveComponent. They arrive at the LiveView in one hop. The LiveView
+then uses the foreign key in the message to determine which child's sub-list to update.
 
-The grandchild includes the parent child's ID in the message:
+### Communication Approaches
+
+There are two approaches for handling grandchild communication. Choose based on your
+nesting depth and component reuse needs:
+
+### Approach A: Scoped Message with Foreign Key Routing
+
+The grandchild sends a message to the parent LiveView (via `send(self(), ...)`), including
+enough context for the parent to identify which child's sub-list to update:
 
 ```elixir
-# In GrandchildLive
+# In GrandchildLive — uses generic naming; substitute your domain names
 def handle_event("save", _params, socket) do
-  case Polling.create_option(scope, socket.assigns.question, attrs) do
-    {:ok, persisted_option} ->
-      send(self(), {:option_created, persisted_option,
-                    temp_id: socket.assigns.option.temp_id})
-      #                      ^ parent LiveView receives this
+  scope = socket.assigns.current_scope
+  parent_child = socket.assigns.parent_child  # the child LC's record
+
+  case Polling.create_grandchild(scope, parent_child, attrs) do
+    {:ok, persisted_grandchild} ->
+      send(self(), {:grandchild_created, persisted_grandchild,
+                    parent_child_id: parent_child.id,
+                    temp_id: socket.assigns.grandchild.temp_id})
+      # ^ reaches the parent LiveView directly, NOT the child LC
+
+    {:error, _changeset} ->
+      {:noreply, put_flash(socket, :error, "Could not save")}
   end
 end
 ```
 
-The parent LiveView (not the child) handles the message and matches the grandchild's
-parent by `question_id`:
+The parent LiveView (not the child LiveComponent) handles the message and uses the
+foreign key (`parent_child_id`) to find which child's sub-list to update:
 
 ```elixir
-# In the parent LiveView (QuestionsLive)
-def handle_info({:option_created, new_option, temp_id: temp_id}, socket) do
-  # Find which question this option belongs to
-  questions = Enum.map(socket.assigns.questions, fn question ->
-    if question.id == new_option.question_id do
-      # Replace temp option with persisted one
-      new_options = Enum.reject(question.options, fn opt ->
-        Map.get(opt, :temp_id) == temp_id
-      end) ++ [new_option]
-      %{question | options: new_options}
+# In the parent LiveView
+def handle_info({:grandchild_created, new_grandchild, opts}, socket) do
+  parent_child_id = opts[:parent_child_id]
+  temp_id = opts[:temp_id]
+
+  children = Enum.map(socket.assigns.children, fn child ->
+    if child.id == parent_child_id do
+      grandkids = child.grandchildren || []
+      updated_grandkids =
+        grandkids
+        |> Enum.reject(fn g -> Map.get(g, :temp_id) == temp_id end)
+        |> Kernel.++([new_grandchild])
+
+      %{child | grandchildren: updated_grandkids}
     else
-      question
+      child
     end
   end)
 
-  {:noreply, assign(socket, :questions, questions)}
+  {:noreply, assign(socket, :children, children)}
 end
 ```
 
 This works because the parent LiveView owns the entire data tree. Messages from any depth
-reach it, and it knows how to reconcile based on foreign keys.
+reach it, and it uses the foreign key included in the message to determine where they belong.
 
-### Approach B: Callback function (unified parent/child)
+> **Domain naming note:** In your application, substitute your actual schema names.
+> For example, if your domain is questions-with-options:
+> - `parent_child` → `question`
+> - `grandchild` → `option`
+> - `parent_child_id` → `question_id`
+> - `Polling.create_grandchild` → `Polling.create_option`
+> - `:grandchild_created` → `:option_created`
+>
+> The pattern is identical; only the names change. Choose naming early in your
+> design and use consistently throughout.
+
+### Approach B: Callback Function (Unified Parent/Child)
 
 As recommended by Phoenix core, pass a callback function that each level implements
 differently:
@@ -575,8 +608,11 @@ When rendered from a **LiveComponent**:
 />
 ```
 
-**Recommendation:** For simple 2-level nesting, Approach A (scoped messages) is simpler
-and more explicit. For reusable components that might be mounted anywhere, use Approach B.
+**Recommendation:** For 2-level nesting (LiveView → Child LC → Grandchild LC),
+Approach A (scoped messages) is simpler and more explicit. For reusable components
+that might be mounted anywhere (varying parent context), use Approach B. For 3+ levels
+of nesting (LiveView → LC → LC → LC), Approach B scales better because each level
+doesn't need to know its parent's parent's structure.
 
 ### Grandchild Render Pattern
 
@@ -1123,10 +1159,7 @@ transaction commits. Never use it for data you just mutated. Use it only for ide
 
 **Rule of thumb:** The struct in the message tells you *which* record changed. The DB
 tells you *what* it looks like now. Always re-fetch.
-
 ---
-
-
 
 ## 11. Common Pitfalls
 
@@ -1408,26 +1441,35 @@ end
 ### Communication Direction Summary
 
 ```
-┌─────────────┐
-│  LiveView   │ ◄──── send(self(), {:child_updated, record})
-│  (source    │ ◄──── send(self(), {:child_created, record, temp_id})
-│   of truth) │ ◄──── send(self(), {:child_deleted, id})
-│             │ ◄──── send(self(), {:children_reordered, parent})
-└──────┬──────┘
-       │ renders with assigns (child, idx, count, etc.)
-       ▼
-┌─────────────┐
-│  Child LC   │ ◄──── send(self(), {:grandchild_updated, record})
-│             │ ◄──── send(self(), {:grandchild_created, record, temp_id})
-│             │ ◄──── send(self(), {:grandchild_deleted, id})
-│             │ ◄──── send(self(), {:grandchild_reordered, parent})
-└──────┬──────┘
-       │ renders with assigns (grandchild, idx, count, etc.)
-       ▼
-┌─────────────┐
-│Grandchild LC│
-└─────────────┘
+┌─────────────────┐
+│                 │ ◄──── send(self(), {:child_created, record, temp_id})
+│   Parent        │ ◄──── send(self(), {:child_updated, record})
+│   LiveView      │ ◄──── send(self(), {:child_deleted, id})
+│   (source       │ ◄──── send(self(), {:children_reordered, parent})
+│    of truth)    │ ◄──── send(self(), {:grandchild_created, record, opts})
+│                 │ ◄──── send(self(), {:grandchild_updated, record})
+│                 │ ◄──── send(self(), {:grandchild_deleted, id})
+│                 │ ◄──── send(self(), {:grandchildren_reordered, parent})
+└────────┬────────┘
+         │ renders with assigns (child, idx, count, etc.)
+         ▼
+┌─────────────────┐
+│  Child LC       │
+│  (owns transient │
+│   UI state)     │
+└────────┬────────┘
+         │ renders with assigns (grandchild, idx, count, etc.)
+         ▼
+┌─────────────────┐
+│  Grandchild LC  │
+│  (owns transient │
+│   UI state)     │
+└─────────────────┘
 ```
+
+> **Key:** ALL `send(self(), ...)` calls at every depth reach the **Parent LiveView** directly.
+> The Child LC never intercepts grandchild messages. The foreign key in the message
+> (e.g., `parent_child_id`) tells the LiveView which child's sub-list to update.
 
 ### Handler Signatures in LiveView
 
