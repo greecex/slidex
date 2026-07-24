@@ -1,160 +1,186 @@
-# Cookbook Index — Intent → Section
+# Skill: Nested Dynamic Lists (Phoenix LiveView + LiveComponent)
 
-Questions a dev asks. Each links to the relevant section in `COOKBOOK_NESTED_LIVECOMPONENTS.md`. Read only what your task needs.
+## Description
+
+Pattern for a LiveView owning a dynamic list of child LiveComponents,
+each optionally containing grandchild LiveComponents. Users add, edit,
+delete, reorder items inline — no page reloads.
+
+**Use when:** UI needs inline dynamic sub-lists — quiz questions with options,
+invoices with line items, playlists with tracks, surveys with questions.
+
+**Source of truth:** `COOKBOOK_NESTED_LIVECOMPONENTS.md` (3100 lines, all details).
+This file is the index — read only sections your task needs.
+
+## Architecture (One-Line)
+
+```
+Parent LiveView (owns data, DB, flash) → renders N Child LiveComponents (transient state)
+→ each renders K Grandchild LiveComponents (same pattern, one hop to parent via send(self(), ...))
+```
+
+- `self()` in any LiveComponent = parent LiveView PID
+- `send(self(), {:msg, data})` from any depth reaches LiveView's `handle_info/2` directly
+- LiveView always source of truth. Components hold only transient UI state.
+
+## Agent Workflow
+
+1. Read this index. Find the category matching your task.
+2. Open linked section in `COOKBOOK_NESTED_LIVECOMPONENTS.md`.
+3. Optionally click Slidex permalink to see exact production code.
+4. Implement. Keep to the pattern — no business logic in LiveView/Component.
+5. Run `mix precommit` before finishing.
 
 ## Reference Implementation
 
-All patterns extracted from [Slidex](https://github.com/greecex/slidex), a Phoenix LiveView tech demo (stable, frozen). Use permalinks to see exact production code:
+All patterns from [Slidex](https://github.com/greecex/slidex) (stable, frozen tech demo).
 
 | File | Covers |
 |------|--------|
-| [PollLive.Questions](https://github.com/greecex/slidex/blob/main/lib/slidex_web/live/poll_live/questions.ex) | Parent LiveView — mount, render, all handle_info handlers, temp CRUD |
-| [QuestionLive](https://github.com/greecex/slidex/blob/main/lib/slidex_web/live/poll_live/components/question_live.ex) | Child LiveComponent — update/2, edit/save/delete, reorder, add-grandchild |
-| [OptionLive](https://github.com/greecex/slidex/blob/main/lib/slidex_web/live/poll_live/components/option_live.ex) | Grandchild LiveComponent — editing guard, save helpers, delete |
+| [PollLive.Questions](https://github.com/greecex/slidex/blob/main/lib/slidex_web/live/poll_live/questions.ex) | Parent LiveView — mount, all handle_info handlers, temp CRUD |
+| [QuestionLive](https://github.com/greecex/slidex/blob/main/lib/slidex_web/live/poll_live/components/question_live.ex) | Child LC — update/2, edit/save/delete, reorder, add-grandchild |
+| [OptionLive](https://github.com/greecex/slidex/blob/main/lib/slidex_web/live/poll_live/components/option_live.ex) | Grandchild LC — editing guard, save helpers, delete |
 | [Preloader](https://github.com/greecex/slidex/blob/main/lib/slidex/preloader.ex) | Dispatch-per-struct preloading with post-sort |
 | [Reorder](https://github.com/greecex/slidex/blob/main/lib/slidex/polling/reorder.ex) | Atomic swap with position normalization |
-| [Polling context](https://github.com/greecex/slidex/blob/main/lib/slidex/polling.ex) | All CRUD functions, authorization, position helper |
+| [Polling context](https://github.com/greecex/slidex/blob/main/lib/slidex/polling.ex) | All CRUD, authorization, position helper |
 | [Authorization](https://github.com/greecex/slidex/blob/main/lib/slidex/authorization.ex) | Scope-based user authorization chain |
 | [Question schema](https://github.com/greecex/slidex/blob/main/lib/slidex/polling/question.ex) | binary_id, has_many :options, cast_assoc |
 | [Option schema](https://github.com/greecex/slidex/blob/main/lib/slidex/polling/option.ex) | binary_id, belongs_to, extra fields |
 | [Questions migration](https://github.com/greecex/slidex/blob/main/priv/repo/migrations/20260606143924_create_questions.exs) | composite index, on_delete cascade |
 | [Options migration](https://github.com/greecex/slidex/blob/main/priv/repo/migrations/20260606144051_create_options.exs) | same pattern |
 | [Router](https://github.com/greecex/slidex/blob/main/lib/slidex_web/router.ex) | live_session scopes, route placement |
-| [PollLive.Index (streams)](https://github.com/greecex/slidex/blob/main/lib/slidex_web/live/poll_live/index.ex) | Stream usage in a list view |
+| [PollLive.Index](https://github.com/greecex/slidex/blob/main/lib/slidex_web/live/poll_live/index.ex) | Stream usage in list view |
 
----
+## Key Rules (Violations = Bugs)
 
+- LiveView = source of truth for persisted data. Components = transient state only.
+- `phx-target={@myself}` on all component events — without it, events hit parent LV.
+- Always re-fetch from DB after mutation. Never use struct from message beyond identity lookup.
+- Programmatic fields (position, foreign keys) set on struct, accepted in changeset, never from user params.
+- Update/2 fires on every parent re-render. Guard it with editing check to preserve user input.
+- Temp records: use `"temp_"` prefix, `System.unique_integer([:positive])` for unique ID, never persist.
+- Flash only for persisted operations — temp delete = no flash.
+- Context module owns all DB + auth. LiveView = thin orchestration.
+- `:binary_id` primary keys. `@foreign_key_type :binary_id` chain.
+- `<.form for={@form}>`, never `<.form for={@changeset}>`.
+- No `<script>` tags in HEEx. All JS in `assets/js/`.
+- No `live_redirect`/`live_patch`. Use `<.link navigate={}>`/`<.link patch={}>`.
 
+## Reference: Intent → Section
 
-## Architecture & Setup
+### Architecture & Setup
+- What's the three-layer pattern? → [Sec 1](COOKBOOK_NESTED_LIVECOMPONENTS.md#1-overview-and-concepts)
+- What versions do I need? → [Sec 2.1](COOKBOOK_NESTED_LIVECOMPONENTS.md#21-phoenix-version-and-framework-requirements)
+- How do I configure routes? → [Sec 2.2](COOKBOOK_NESTED_LIVECOMPONENTS.md#22-router-configuration)
+- How do I write migrations? → [Sec 2.3](COOKBOOK_NESTED_LIVECOMPONENTS.md#23-generating-the-schema-and-migration)
+- File structure convention? → [Sec 3](COOKBOOK_NESTED_LIVECOMPONENTS.md#file-structure-convention)
+- Schema and changesets? → [Sec 3](COOKBOOK_NESTED_LIVECOMPONENTS.md#schema-pattern)
+- Preloader module? → [Sec 3.5](COOKBOOK_NESTED_LIVECOMPONENTS.md#35-the-preloader-strategy)
 
-- What's the three-layer pattern? → [Sec 1: Overview](COOKBOOK_NESTED_LIVECOMPONENTS.md#1-overview-and-concepts)
-- What Phoenix/Elixir versions do I need? → [Sec 2.1: Phoenix Version Requirements](COOKBOOK_NESTED_LIVECOMPONENTS.md#21-phoenix-version-and-framework-requirements)
-- How do I configure routes for authenticated vs public lists? → [Sec 2.2: Router Configuration](COOKBOOK_NESTED_LIVECOMPONENTS.md#22-router-configuration)
-- How do I write the migration for child/grandchild tables? → [Sec 2.3: Migration Example](COOKBOOK_NESTED_LIVECOMPONENTS.md#23-generating-the-schema-and-migration)
-- What's the file structure convention? → [Sec 3: File Structure Convention](COOKBOOK_NESTED_LIVECOMPONENTS.md#file-structure-convention)
-- How do the schema and changesets look? → [Sec 3: Schema Pattern](COOKBOOK_NESTED_LIVECOMPONENTS.md#schema-pattern)
-- What should be in the Preloader module? → [Sec 3.5: Preloader Strategy](COOKBOOK_NESTED_LIVECOMPONENTS.md#35-the-preloader-strategy)
+### Parent LiveView
+- Mount? → [Sec 4](COOKBOOK_NESTED_LIVECOMPONENTS.md#mount)
+- Render children? → [Sec 4](COOKBOOK_NESTED_LIVECOMPONENTS.md#render)
+- Add child optimistically? → [Sec 4](COOKBOOK_NESTED_LIVECOMPONENTS.md#adding-a-child-optimistic)
+- Handle child messages? → [Sec 4](COOKBOOK_NESTED_LIVECOMPONENTS.md#receiving-messages-from-children)
+- Grandchild events at parent level? → [Sec 4](COOKBOOK_NESTED_LIVECOMPONENTS.md#receiving-messages-from-children)
+- send_update/2 targeting? → [Sec 4](COOKBOOK_NESTED_LIVECOMPONENTS.md#send_update2-targeted-parent-to-child-updates)
+- Layouts.app structure? → [Sec 4](COOKBOOK_NESTED_LIVECOMPONENTS.md#phoenix-18-layouts-template-structure)
 
-## Parent LiveView
+### Child LiveComponent
+- Component skeleton? → [Sec 5](COOKBOOK_NESTED_LIVECOMPONENTS.md#the-component)
+- Mount transient state? → [Sec 5](COOKBOOK_NESTED_LIVECOMPONENTS.md#the-component)
+- update/2 logic? → [Sec 5](COOKBOOK_NESTED_LIVECOMPONENTS.md#update-logic)
+- Preserve edit state across re-renders? → [Sec 5](COOKBOOK_NESTED_LIVECOMPONENTS.md#update-logic)
+- assign_new/3 alternative? → [Sec 5](COOKBOOK_NESTED_LIVECOMPONENTS.md#preserving-state-with-assign_new3)
+- Edit / Cancel Edit? → [Sec 5](COOKBOOK_NESTED_LIVECOMPONENTS.md#edit)
+- Save (create vs update)? → [Sec 5](COOKBOOK_NESTED_LIVECOMPONENTS.md#save-create-or-update)
+- Delete (temp vs persisted)? → [Sec 5](COOKBOOK_NESTED_LIVECOMPONENTS.md#delete)
+- Add grandchild from child? → [Sec 5](COOKBOOK_NESTED_LIVECOMPONENTS.md#add-grandchild-if-this-component-manages-a-nested-list)
+- Reorder? → [Sec 5](COOKBOOK_NESTED_LIVECOMPONENTS.md#reorder)
 
-- How does mount look? → [Sec 4: Mount](COOKBOOK_NESTED_LIVECOMPONENTS.md#mount)
-- How do I render child LiveComponents? → [Sec 4: Render](COOKBOOK_NESTED_LIVECOMPONENTS.md#render)
-- How do I add a child optimistically? → [Sec 4: Adding a Child](COOKBOOK_NESTED_LIVECOMPONENTS.md#adding-a-child-optimistic)
-- How do I handle child-created/updated/deleted messages? → [Sec 4: Receiving Messages](COOKBOOK_NESTED_LIVECOMPONENTS.md#receiving-messages-from-children)
-- How do I handle grandchild events at the parent level? → [Sec 4: Grandchild Events at the Parent Level](COOKBOOK_NESTED_LIVECOMPONENTS.md#receiving-messages-from-children)
-- How do I target a specific child without re-rendering all? → [Sec 4: send_update/2](COOKBOOK_NESTED_LIVECOMPONENTS.md#send_update2-targeted-parent-to-child-updates)
-- When should I NOT use send_update/2? → [Sec 4: When Wrong](COOKBOOK_NESTED_LIVECOMPONENTS.md#send_update2-is-the-wrong-tool-when)
-- What Layouts.app template structure is needed? → [Sec 4: Layouts Template](COOKBOOK_NESTED_LIVECOMPONENTS.md#phoenix-18-layouts-template-structure)
+### Grandchild LiveComponent
+- Communication difference? → [Sec 6](COOKBOOK_NESTED_LIVECOMPONENTS.md#key-insight-direct-to-parent-communication)
+- Scoped messages (A) vs callbacks (B)? → [Sec 6](COOKBOOK_NESTED_LIVECOMPONENTS.md#communication-approaches)
+- Approach A: foreign key routing? → [Sec 6](COOKBOOK_NESTED_LIVECOMPONENTS.md#approach-a-scoped-message-with-foreign-key-routing)
+- Approach B: callbacks? → [Sec 6](COOKBOOK_NESTED_LIVECOMPONENTS.md#approach-b-callback-function-unified-parentchild)
+- Grandchild update/2? → [Sec 6](COOKBOOK_NESTED_LIVECOMPONENTS.md#grandchild-update2-editing-guard)
+- Grandchild save with extra fields? → [Sec 6](COOKBOOK_NESTED_LIVECOMPONENTS.md#grandchild-save-private-helpers)
+- Grandchild delete? → [Sec 6](COOKBOOK_NESTED_LIVECOMPONENTS.md#grandchild-save-private-helpers)
+- Render from child? → [Sec 6](COOKBOOK_NESTED_LIVECOMPONENTS.md#grandchild-render-pattern)
 
-## Child LiveComponent
+### Data Flow & Messages
+- Full event flow walkthrough? → [Sec 8](COOKBOOK_NESTED_LIVECOMPONENTS.md#event-flow-diagram)
+- Complete message table? → [Sec 8](COOKBOOK_NESTED_LIVECOMPONENTS.md#complete-message-table)
+- What never gets sent? → [Sec 8](COOKBOOK_NESTED_LIVECOMPONENTS.md#what-never-gets-sent)
+- Handler signatures at a glance? → [Sec 17](COOKBOOK_NESTED_LIVECOMPONENTS.md#handler-signatures-in-liveview)
 
-- What's the basic component skeleton? → [Sec 5: The Component](COOKBOOK_NESTED_LIVECOMPONENTS.md#the-component)
-- How does mount initialize transient state? → [Sec 5: The Component](COOKBOOK_NESTED_LIVECOMPONENTS.md#the-component)
-- How does update/2 synchronize with parent assigns? → [Sec 5: Update Logic](COOKBOOK_NESTED_LIVECOMPONENTS.md#update-logic)
-- How do I preserve edit state across re-renders? → [Sec 5: Editing-Guard Pattern](COOKBOOK_NESTED_LIVECOMPONENTS.md#update-logic)
-- What's the alternative with assign_new/3? → [Sec 5: assign_new/3](COOKBOOK_NESTED_LIVECOMPONENTS.md#preserving-state-with-assign_new3)
-- How do I handle events (edit, cancel_edit)? → [Sec 5: Edit / Cancel Edit](COOKBOOK_NESTED_LIVECOMPONENTS.md#edit)
-- How does save distinguish create vs update? → [Sec 5: Save](COOKBOOK_NESTED_LIVECOMPONENTS.md#save-create-or-update)
-- How does delete work for temp vs persisted? → [Sec 5: Delete](COOKBOOK_NESTED_LIVECOMPONENTS.md#delete)
-- How do I add a child (grandchild) from the child LC? → [Sec 5: Add Grandchild](COOKBOOK_NESTED_LIVECOMPONENTS.md#add-grandchild-if-this-component-manages-a-nested-list)
-- How does reorder work? → [Sec 5: Reorder](COOKBOOK_NESTED_LIVECOMPONENTS.md#reorder)
+### Reordering
+- Reorder module? → [Sec 9](COOKBOOK_NESTED_LIVECOMPONENTS.md#context-module-pure-logic)
+- Swap with position normalization? → [Sec 9](COOKBOOK_NESTED_LIVECOMPONENTS.md#context-module-pure-logic)
+- Context exposes reorder? → [Sec 9](COOKBOOK_NESTED_LIVECOMPONENTS.md#how-the-context-exposes-it)
+- Component triggers reorder? → [Sec 9](COOKBOOK_NESTED_LIVECOMPONENTS.md#how-the-livecomponent-triggers-it)
+- Parent re-fetch after reorder? → [Sec 9](COOKBOOK_NESTED_LIVECOMPONENTS.md#how-the-parent-liveview-handles-it-always-re-fetch-from-db)
 
-## Grandchild LiveComponent
+### Optimistic UI & Temp Records
+- Temp ID pattern? → [Sec 10](COOKBOOK_NESTED_LIVECOMPONENTS.md#the-temp-id-pattern)
+- Detect temp records? → [Sec 10](COOKBOOK_NESTED_LIVECOMPONENTS.md#detecting-temp-records)
+- Identity helper? → [Sec 10](COOKBOOK_NESTED_LIVECOMPONENTS.md#the-identity-helper)
+- Reconcile on save? → [Sec 10](COOKBOOK_NESTED_LIVECOMPONENTS.md#reconciliation-on-save)
+- Flash discipline for temps? → [Sec 10](COOKBOOK_NESTED_LIVECOMPONENTS.md#flash-message-discipline)
 
-- What's different about grandchild communication? → [Sec 6: Key Insight](COOKBOOK_NESTED_LIVECOMPONENTS.md#key-insight-direct-to-parent-communication)
-- Should I use scoped messages (A) or callbacks (B)? → [Sec 6: Approaches](COOKBOOK_NESTED_LIVECOMPONENTS.md#communication-approaches)
-- How does Approach A route by foreign key? → [Sec 6: Scoped Message](COOKBOOK_NESTED_LIVECOMPONENTS.md#approach-a-scoped-message-with-foreign-key-routing)
-- How does Approach B use callbacks? → [Sec 6: Callback Function](COOKBOOK_NESTED_LIVECOMPONENTS.md#approach-b-callback-function-unified-parentchild)
-- How does grandchild update/2 work? → [Sec 6: Grandchild update/2](COOKBOOK_NESTED_LIVECOMPONENTS.md#grandchild-update2-editing-guard)
-- How does grandchild save with extra fields? → [Sec 6: Grandchild Save](COOKBOOK_NESTED_LIVECOMPONENTS.md#grandchild-save-private-helpers)
-- How does grandchild delete handle temp vs persisted? → [Sec 6: Grandchild delete](COOKBOOK_NESTED_LIVECOMPONENTS.md#grandchild-save-private-helpers)
-- How do I render grandchildren from the child LC? → [Sec 6: Render Pattern](COOKBOOK_NESTED_LIVECOMPONENTS.md#grandchild-render-pattern)
+### PubSub & Multi-User
+- When is PubSub needed? → [Sec 11.1](COOKBOOK_NESTED_LIVECOMPONENTS.md#111-when-pubsub-is-needed)
+- Subscribe and handle broadcasts? → [Sec 11.2](COOKBOOK_NESTED_LIVECOMPONENTS.md#112-subscribing-and-handling-broadcasts)
+- Protect edits during broadcasts? → [Sec 11.3](COOKBOOK_NESTED_LIVECOMPONENTS.md#113-protecting-edit-state-during-broadcasts)
+- Temp records survive broadcasts? → [Sec 11.4](COOKBOOK_NESTED_LIVECOMPONENTS.md#114-temp-record-isolation)
+- Conflict resolution strategies? → [Sec 11.5](COOKBOOK_NESTED_LIVECOMPONENTS.md#115-conflict-resolution-strategies)
 
-## Data Flow & Messages
+### Error Recovery
+- Validation error — keep form open? → [Sec 12.1](COOKBOOK_NESTED_LIVECOMPONENTS.md#121-validation-error-recovery)
+- Authorization failure? → [Sec 12.2](COOKBOOK_NESTED_LIVECOMPONENTS.md#122-authorization-failure-recovery)
+- Constraint violation? → [Sec 12.3](COOKBOOK_NESTED_LIVECOMPONENTS.md#123-constraint-violation-recovery)
+- Network disconnection? → [Sec 12.4](COOKBOOK_NESTED_LIVECOMPONENTS.md#124-network-disconnection-and-reconnection)
+- Graceful degradation? → [Sec 12.5](COOKBOOK_NESTED_LIVECOMPONENTS.md#125-graceful-degradation)
 
-- Walk me through the full event flow. → [Sec 8: Event Flow Diagram](COOKBOOK_NESTED_LIVECOMPONENTS.md#event-flow-diagram)
-- What messages does my parent need to handle? → [Sec 8: Complete Message Table](COOKBOOK_NESTED_LIVECOMPONENTS.md#complete-message-table)
-- What should never be sent in a message? → [Sec 8: What Never Gets Sent](COOKBOOK_NESTED_LIVECOMPONENTS.md#what-never-gets-sent)
-- Show me all handler signatures at a glance. → [Sec 17: Handler Signatures](COOKBOOK_NESTED_LIVECOMPONENTS.md#handler-signatures-in-liveview)
+### LiveView Streams
+- Streams vs direct assigns trade-offs? → [Sec 7.7](COOKBOOK_NESTED_LIVECOMPONENTS.md#77-streams-vs-direct-assigns-trade-off-analysis)
+- Streams with LiveComponents? → [Sec 7.3](COOKBOOK_NESTED_LIVECOMPONENTS.md#73-streams-with-livecomponents)
+- Find record by stream_id? → [Sec 7.3](COOKBOOK_NESTED_LIVECOMPONENTS.md#73-streams-with-livecomponents)
+- Stream CRUD? → [Sec 7.4](COOKBOOK_NESTED_LIVECOMPONENTS.md#74-stream-based-crud-flow)
+- Reorder with streams? → [Sec 7.5](COOKBOOK_NESTED_LIVECOMPONENTS.md#75-streams-and-reordering)
+- idx/count with streams? → [Sec 7.6](COOKBOOK_NESTED_LIVECOMPONENTS.md#76-streams-and-the-idx--count-pattern)
 
-## Reordering
+### Context Module
+- Functions to expose? → [Sec 13](COOKBOOK_NESTED_LIVECOMPONENTS.md#pattern-for-a-context-module)
+- Position helper? → [Sec 13](COOKBOOK_NESTED_LIVECOMPONENTS.md#pattern-for-a-context-module)
+- Authorization chain? → [Sec 13](COOKBOOK_NESTED_LIVECOMPONENTS.md#authorization-chain)
+- Rules for context modules? → [Sec 13](COOKBOOK_NESTED_LIVECOMPONENTS.md#rules-for-the-context-module)
 
-- How does the Reorder module work? → [Sec 9: Context Module](COOKBOOK_NESTED_LIVECOMPONENTS.md#context-module-pure-logic)
-- How does swap with position normalization work? → [Sec 9: swap](COOKBOOK_NESTED_LIVECOMPONENTS.md#context-module-pure-logic)
-- How does the context expose reorder? → [Sec 9: Context Exposes](COOKBOOK_NESTED_LIVECOMPONENTS.md#how-the-context-exposes-it)
-- How does the child trigger reorder? → [Sec 9: LiveComponent Triggers](COOKBOOK_NESTED_LIVECOMPONENTS.md#how-the-livecomponent-triggers-it)
-- Why must the parent re-fetch after reorder? → [Sec 9: Parent Handles](COOKBOOK_NESTED_LIVECOMPONENTS.md#how-the-parent-liveview-handles-it-always-re-fetch-from-db)
+### No-Negotiables
+- DO/DON'T list? → [Sec 14](COOKBOOK_NESTED_LIVECOMPONENTS.md#14-no-negotiables-and-guardrails)
+- Phoenix 1.8 framework rules? → [Sec 14](COOKBOOK_NESTED_LIVECOMPONENTS.md#phoenix-v18-framework-rules)
+- Process rules (from real failures)? → [Sec 14](COOKBOOK_NESTED_LIVECOMPONENTS.md#process-rules-from-real-world-failures)
 
-## Optimistic UI & Temp Records
+### Testing
+- Testing philosophy? → [Sec 16](COOKBOOK_NESTED_LIVECOMPONENTS.md#testing-philosophy)
+- Context tests? → [Sec 16](COOKBOOK_NESTED_LIVECOMPONENTS.md#context-tests)
+- LiveView interaction tests? → [Sec 16](COOKBOOK_NESTED_LIVECOMPONENTS.md#liveview-interaction-tests)
+- Stream list tests? → [Sec 16](COOKBOOK_NESTED_LIVECOMPONENTS.md#testing-stream-based-lists)
+- PubSub LiveView tests? → [Sec 16](COOKBOOK_NESTED_LIVECOMPONENTS.md#testing-pubsub-enabled-liveviews)
 
-- How do temp records work? → [Sec 10: Temp ID Pattern](COOKBOOK_NESTED_LIVECOMPONENTS.md#the-temp-id-pattern)
-- How do I detect temp records in a component? → [Sec 10: Detecting](COOKBOOK_NESTED_LIVECOMPONENTS.md#detecting-temp-records)
-- How does the identity helper work? → [Sec 10: Identity Helper](COOKBOOK_NESTED_LIVECOMPONENTS.md#the-identity-helper)
-- How do I reconcile temps on save? → [Sec 10: Reconciliation](COOKBOOK_NESTED_LIVECOMPONENTS.md#reconciliation-on-save)
-- When should I show flash for temp operations? → [Sec 10: Flash Discipline](COOKBOOK_NESTED_LIVECOMPONENTS.md#flash-message-discipline)
-
-## PubSub & Multi-User
-
-- When do I need PubSub for this pattern? → [Sec 11.1: When PubSub](COOKBOOK_NESTED_LIVECOMPONENTS.md#111-when-pubsub-is-needed)
-- How do I subscribe and handle broadcasts? → [Sec 11.2: Subscribing](COOKBOOK_NESTED_LIVECOMPONENTS.md#112-subscribing-and-handling-broadcasts)
-- How do I protect user edits during broadcasts? → [Sec 11.3: Edit State Protection](COOKBOOK_NESTED_LIVECOMPONENTS.md#113-protecting-edit-state-during-broadcasts)
-- How do temp records survive broadcasts? → [Sec 11.4: Temp Isolation](COOKBOOK_NESTED_LIVECOMPONENTS.md#114-temp-record-isolation)
-- How do I handle edit conflicts (optimistic locking, etc.)? → [Sec 11.5: Conflict Resolution](COOKBOOK_NESTED_LIVECOMPONENTS.md#115-conflict-resolution-strategies)
-
-## Error Recovery
-
-- How do I keep the form open on validation error? → [Sec 12.1: Validation](COOKBOOK_NESTED_LIVECOMPONENTS.md#121-validation-error-recovery)
-- How do I handle authorization failures? → [Sec 12.2: Auth Failure](COOKBOOK_NESTED_LIVECOMPONENTS.md#122-authorization-failure-recovery)
-- How do I handle constraint violations? → [Sec 12.3: Constraint Violation](COOKBOOK_NESTED_LIVECOMPONENTS.md#123-constraint-violation-recovery)
-- How do I handle network disconnection? → [Sec 12.4: Network](COOKBOOK_NESTED_LIVECOMPONENTS.md#124-network-disconnection-and-reconnection)
-- What graceful degradation should I implement? → [Sec 12.5: Graceful](COOKBOOK_NESTED_LIVECOMPONENTS.md#125-graceful-degradation)
-
-## LiveView Streams
-
-- Should I use streams or direct assigns? → [Sec 7.7: Trade-offs](COOKBOOK_NESTED_LIVECOMPONENTS.md#77-streams-vs-direct-assigns-trade-off-analysis)
-- How do streams work with LiveComponents? → [Sec 7.3: Streams with LCs](COOKBOOK_NESTED_LIVECOMPONENTS.md#73-streams-with-livecomponents)
-- How do I find a record by stream_id? → [Sec 7.3: Strategy A/B](COOKBOOK_NESTED_LIVECOMPONENTS.md#73-streams-with-livecomponents)
-- How do I CRUD with streams (insert, delete, reset)? → [Sec 7.4: Stream CRUD](COOKBOOK_NESTED_LIVECOMPONENTS.md#74-stream-based-crud-flow)
-- How do I reorder with streams? → [Sec 7.5: Stream Reorder](COOKBOOK_NESTED_LIVECOMPONENTS.md#75-streams-and-reordering)
-- How do I track idx/count with streams? → [Sec 7.6: idx/count](COOKBOOK_NESTED_LIVECOMPONENTS.md#76-streams-and-the-idx--count-pattern)
-
-## Context Module
-
-- What functions should my context module expose? → [Sec 13: Pattern](COOKBOOK_NESTED_LIVECOMPONENTS.md#pattern-for-a-context-module)
-- How does the position helper work? → [Sec 13: Position Helper](COOKBOOK_NESTED_LIVECOMPONENTS.md#pattern-for-a-context-module)
-- How does authorization chain work? → [Sec 13: Authorization Chain](COOKBOOK_NESTED_LIVECOMPONENTS.md#authorization-chain)
-- What are the rules for context modules? → [Sec 13: Rules](COOKBOOK_NESTED_LIVECOMPONENTS.md#rules-for-the-context-module)
-
-## No-Negotiables
-
-- What rules can I never violate? → [Sec 14: All DO/DON'T](COOKBOOK_NESTED_LIVECOMPONENTS.md#14-no-negotiables-and-guardrails)
-- What Phoenix 1.8 framework rules apply? → [Sec 14: Phoenix 1.8 Rules](COOKBOOK_NESTED_LIVECOMPONENTS.md#phoenix-v18-framework-rules)
-- What process rules prevent common bugs? → [Sec 14: Process Rules](COOKBOOK_NESTED_LIVECOMPONENTS.md#process-rules-from-real-world-failures)
-
-## Testing
-
-- How should I structure tests? → [Sec 16: Testing Philosophy](COOKBOOK_NESTED_LIVECOMPONENTS.md#testing-philosophy)
-- How do I test context module (create, reorder, auth)? → [Sec 16: Context Tests](COOKBOOK_NESTED_LIVECOMPONENTS.md#context-tests)
-- How do I test LiveView interactions? → [Sec 16: LV Tests](COOKBOOK_NESTED_LIVECOMPONENTS.md#liveview-interaction-tests)
-- How do I test stream-based lists? → [Sec 16: Stream Tests](COOKBOOK_NESTED_LIVECOMPONENTS.md#testing-stream-based-lists)
-- How do I test PubSub-enabled LiveViews? → [Sec 16: PubSub Tests](COOKBOOK_NESTED_LIVECOMPONENTS.md#testing-pubsub-enabled-liveviews)
-
-## Pitfalls (Debugging)
-
-- My component remounts on every update — why? → [Pitfall 1: Remount](COOKBOOK_NESTED_LIVECOMPONENTS.md#pitfall-1-component-remounts-instead-of-updating)
-- State accumulates across re-renders — fix? → [Pitfall 2: State Accumulation](COOKBOOK_NESTED_LIVECOMPONENTS.md#pitfall-2-components-accumulate-state)
-- Grandchild messages get lost — why? → [Pitfall 3: Lost Messages](COOKBOOK_NESTED_LIVECOMPONENTS.md#pitfall-3-grandchild-messages-get-lost)
-- Positions jump on reorder — fix? → [Pitfall 4: Jumping Positions](COOKBOOK_NESTED_LIVECOMPONENTS.md#pitfall-4-reorder-creates-jumping-or-duplicate-positions)
-- Flash fires on temp delete — how to prevent? → [Pitfall 5: Temp Flash](COOKBOOK_NESTED_LIVECOMPONENTS.md#pitfall-5-flash-messages-on-temp-deletion)
-- update/2 fires on every keystroke — what to do? → [Pitfall 6: Keystroke](COOKBOOK_NESTED_LIVECOMPONENTS.md#pitfall-6-update2-fires-on-every-keystroke)
-- send_update can't reach my grandchild — why? → [Pitfall 7: Cross-Boundary](COOKBOOK_NESTED_LIVECOMPONENTS.md#pitfall-7-send_update3-targeting-across-component-boundaries)
-- Parent shows stale data after reorder — fix? → [Pitfall 8: Stale Data](COOKBOOK_NESTED_LIVECOMPONENTS.md#pitfall-8-stale-parent-data-after-mutation-or-reorder)
-- LiveView too big — how to know? → [Pitfall 9: Monolithic](COOKBOOK_NESTED_LIVECOMPONENTS.md#pitfall-9-monolithic-liveview-trying-to-handle-multiple-roles)
-- PubSub overwrites my edit — how to protect? → [Pitfall 10: PubSub Overwrite](COOKBOOK_NESTED_LIVECOMPONENTS.md#pitfall-10-pubsub-broadcast-overwrites-users-in-progress-edits)
+### Pitfalls (Debugging)
+- Component remounts? → [Pitfall 1](COOKBOOK_NESTED_LIVECOMPONENTS.md#pitfall-1-component-remounts-instead-of-updating)
+- State accumulates? → [Pitfall 2](COOKBOOK_NESTED_LIVECOMPONENTS.md#pitfall-2-components-accumulate-state)
+- Grandchild messages lost? → [Pitfall 3](COOKBOOK_NESTED_LIVECOMPONENTS.md#pitfall-3-grandchild-messages-get-lost)
+- Positions jump? → [Pitfall 4](COOKBOOK_NESTED_LIVECOMPONENTS.md#pitfall-4-reorder-creates-jumping-or-duplicate-positions)
+- Flash on temp delete? → [Pitfall 5](COOKBOOK_NESTED_LIVECOMPONENTS.md#pitfall-5-flash-messages-on-temp-deletion)
+- update/2 on every keystroke? → [Pitfall 6](COOKBOOK_NESTED_LIVECOMPONENTS.md#pitfall-6-update2-fires-on-every-keystroke)
+- send_update cross-boundary? → [Pitfall 7](COOKBOOK_NESTED_LIVECOMPONENTS.md#pitfall-7-send_update3-targeting-across-component-boundaries)
+- Stale parent data? → [Pitfall 8](COOKBOOK_NESTED_LIVECOMPONENTS.md#pitfall-8-stale-parent-data-after-mutation-or-reorder)
+- Monolithic LiveView? → [Pitfall 9](COOKBOOK_NESTED_LIVECOMPONENTS.md#pitfall-9-monolithic-liveview-trying-to-handle-multiple-roles)
+- PubSub overwrites edits? → [Pitfall 10](COOKBOOK_NESTED_LIVECOMPONENTS.md#pitfall-10-pubsub-broadcast-overwrites-users-in-progress-edits)
 
 ## Quick Reference
-
-- Show me all handler signatures in one place. → [Sec 17: Handler Signatures](COOKBOOK_NESTED_LIVECOMPONENTS.md#handler-signatures-in-liveview)
-- Show me the update/2 guard template. → [Sec 17: Update Guard Template](COOKBOOK_NESTED_LIVECOMPONENTS.md#component-update-guard-template)
-- Show me a full implementation checklist. → [Sec 18: Implementation Checklist](COOKBOOK_NESTED_LIVECOMPONENTS.md#18-implementation-checklist)
+- Handler signatures one place? → [Sec 17](COOKBOOK_NESTED_LIVECOMPONENTS.md#handler-signatures-in-liveview)
+- Update guard template? → [Sec 17](COOKBOOK_NESTED_LIVECOMPONENTS.md#component-update-guard-template)
+- Full implementation checklist? → [Sec 18](COOKBOOK_NESTED_LIVECOMPONENTS.md#18-implementation-checklist)
