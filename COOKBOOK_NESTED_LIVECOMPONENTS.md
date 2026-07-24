@@ -2482,6 +2482,107 @@ defmodule MyAppWeb.ParentLive.QuestionsTest do
 end
 ```
 
+### Testing Stream-Based Lists
+
+When your parent LiveView uses streams instead of direct assigns, the test assertions
+change slightly because the DOM structure uses `phx-update="stream"`:
+
+```elixir
+defmodule MyAppWeb.ParentLive.QuestionsTest do
+  use MyAppWeb.ConnCase
+
+  test "adds child to stream on click", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/parents/#{parent.id}/questions")
+
+    view |> element("#add-child-btn") |> render_click()
+
+    # Stream elements are rendered inside the #children container
+    assert has_element?(view, "#children [id^=child-]")
+  end
+
+  test "stream count matches children count", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/parents/#{parent.id}/questions")
+
+    # The count assign tracks stream size
+    html = render(view)
+    assert html =~ "Total: #{parent.children_count}"
+  end
+
+  test "reorder triggers stream reset", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/parents/#{parent.id}/questions")
+
+    view |> element("#child-#{id} .move-down") |> render_click()
+
+    # After stream reset, elements are in new order
+    # Use render() to get updated HTML and verify order
+    html = render(view)
+    refute html =~ "id=\"child-#{id}\""
+  end
+end
+```
+
+**Caveats when testing streams:**
+- `has_element?/2` works with CSS selectors, including attribute-prefix selectors like
+  `[id^=child-]` for stream-generated ids
+- After `stream(..., reset: true)`, the DOM ids change. Query by content rather than id
+- Stream operations are asynchronous from the test perspective. Use `render()` or
+  `render_click()` to synchronize before asserting
+
+### Testing PubSub-Enabled LiveViews
+
+When the parent LiveView subscribes to PubSub topics, test that broadcasts from other
+processes update the UI:
+
+```elixir
+defmodule MyAppWeb.ParentLive.QuestionsTest do
+  use MyAppWeb.ConnCase
+
+  setup %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/parents/#{parent.id}/questions")
+    %{view: view}
+  end
+
+  test "broadcast from other session updates children", %{view: view} do
+    # Simulate a PubSub broadcast as if another user made a change
+    Phoenix.PubSub.broadcast(
+      MyApp.PubSub,
+      "parent:#{parent.id}",
+      {:parent_updated, parent.id}
+    )
+
+    # Allow the LiveView to process the broadcast
+    render(view)
+
+    # Assert the UI reflects the new data
+    # (this is context-specific — you'd check for specific content)
+    assert has_element?(view, "#children")
+  end
+
+  test "broadcast does not lose temporary records", %{view: view} do
+    # Add a temp record
+    view |> element("#add-child-btn") |> render_click()
+
+    # Send broadcast from another session
+    Phoenix.PubSub.broadcast(
+      MyApp.PubSub,
+      "parent:#{parent.id}",
+      {:parent_updated, parent.id}
+    )
+
+    render(view)
+
+    # Temp record should still be visible after broadcast
+    assert has_element?(view, "[id^=temp_]")
+  end
+end
+```
+
+**Key testing principles for PubSub:**
+- Use `Phoenix.PubSub.broadcast/3` directly — no need for a second LiveView process
+- Call `render(view)` after broadcasting to synchronize the LiveView's message queue
+- Test that temp records survive broadcasts (temp record isolation, section 11.4)
+- Test that edit state survives broadcasts (the `update/2` guard pattern, section 5)
+
 ---
 
 ## 17. Cheat Sheet: Messages Reference
