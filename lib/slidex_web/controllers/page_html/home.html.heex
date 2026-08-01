@@ -19,6 +19,10 @@
     <p class="mt-4 leading-7 text-base-content/70">
       Live polls with Phoenix LiveView.
     </p>
+    <p class="mt-4 text-sm text-base-content/60">
+      {@poll_count} {if @poll_count == 1, do: "poll", else: "polls"} created
+      · {@vote_count} {if @vote_count == 1, do: "vote", else: "votes"} cast
+    </p>
     <div class="flex">
       <div class="w-full sm:w-auto">
         <div class="mt-10 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-3">
