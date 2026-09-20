@@ -46,8 +46,7 @@ defmodule SlidexWeb.Components.Results do
             class="progress progress-primary mt-2 w-full"
             value={Tally.percentage(@tally, option.id)}
             max="100"
-          >
-          </progress>
+          ></progress>
         </li>
       </ul>
     </div>
