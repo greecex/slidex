@@ -59,8 +59,8 @@ defmodule SlidexWeb.SessionLive.Form do
               </div>
             <% end %>
           <% end %>
-          
-    <!-- Kind Selector -->
+
+          <!-- Kind Selector -->
           <div :if={@live_action == :new} class="fieldset">
             <label>
               <span class="label mb-1">Kind</span>

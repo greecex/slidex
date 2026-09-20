@@ -95,8 +95,8 @@ defmodule SlidexWeb.PollLive.Components.OptionLive do
                 autocomplete="off"
                 placeholder="Type an option..."
               />
-              
-    <!-- Search Results -->
+
+              <!-- Search Results -->
               <%= if @show_results and length(@results) > 0 do %>
                 <div class="mt-2 rounded border border-base-300 bg-base-100 shadow-sm max-h-40 overflow-y-auto text-sm divide-y divide-base-200">
                   <%= for item <- @results do %>
@@ -112,8 +112,8 @@ defmodule SlidexWeb.PollLive.Components.OptionLive do
                 </div>
               <% end %>
             </div>
-            
-    <!-- Correct Toggle -->
+
+            <!-- Correct Toggle -->
             <div class="flex flex-col items-center pt-2">
               <label class="flex flex-row items-center gap-1 cursor-pointer">
                 <div class="text-xs font-medium text-base-content/70">Correct</div>
@@ -138,8 +138,8 @@ defmodule SlidexWeb.PollLive.Components.OptionLive do
           <div class="badge badge-neutral badge-soft badge-md mt-0.5">
             {@idx + 1}
           </div>
-          
-    <!-- Reorder -->
+
+          <!-- Reorder -->
           <div class="flex flex-col sm:flex-row gap-0.5 pt-0.5">
             <.button
               type="button"
@@ -163,8 +163,8 @@ defmodule SlidexWeb.PollLive.Components.OptionLive do
               <.icon name="hero-chevron-down" class="size-3.5" />
             </.button>
           </div>
-          
-    <!-- Body + Correct Indicator -->
+
+          <!-- Body + Correct Indicator -->
           <div class="flex-1 min-w-0 pt-0.5">
             <div class="flex items-start gap-2">
               <%= if @is_correct do %>
@@ -177,8 +177,8 @@ defmodule SlidexWeb.PollLive.Components.OptionLive do
               </p>
             </div>
           </div>
-          
-    <!-- Actions -->
+
+          <!-- Actions -->
           <div class="flex items-center gap-1 flex-shrink-0">
             <.button
               type="button"

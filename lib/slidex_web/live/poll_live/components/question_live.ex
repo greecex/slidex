@@ -71,8 +71,8 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
                 </.button>
               </div>
             </div>
-            
-    <!-- Right: Edit / Delete -->
+
+            <!-- Right: Edit / Delete -->
             <div class="flex items-center gap-2">
               <.button
                 type="button"
@@ -93,15 +93,15 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
               </.button>
             </div>
           </div>
-          
-    <!-- Question Body -->
+
+          <!-- Question Body -->
           <div class="mt-3">
             <div class="text-[15px] leading-snug font-medium text-base-content">
               {@body}
             </div>
           </div>
-          
-    <!-- Options -->
+
+          <!-- Options -->
           <div class="mt-5">
             <%= if @options != [] do %>
               <div class="space-y-1.5">
@@ -164,8 +164,8 @@ defmodule SlidexWeb.PollLive.Components.QuestionLive do
                 </.button>
               </div>
             </div>
-            
-    <!-- Textarea + Search Results -->
+
+            <!-- Textarea + Search Results -->
             <div class="space-y-3">
               <.input
                 type="textarea"

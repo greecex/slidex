@@ -62,8 +62,8 @@ defmodule SlidexWeb.PollLive.Show do
             </div>
           <% end %>
         </div>
-        
-    <!-- Survey Sessions -->
+
+        <!-- Survey Sessions -->
         <div>
           <div class="flex items-center justify-between mb-3">
             <h3 class="font-semibold flex items-center gap-x-2 w-full justify-between">
