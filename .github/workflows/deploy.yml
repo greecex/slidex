@@ -3,8 +3,6 @@ name: Deploy
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 jobs:
   test:
@@ -34,8 +32,8 @@ jobs:
           persist-credentials: false
       - uses: erlef/setup-beam@8d44588995e53ce789721e96227122a67826542d
         with:
-          otp-version: "29.0.1"
-          elixir-version: "1.20.1"
+          version-file: .tool-versions
+          version-type: strict
       - run: mix deps.get
       - run: mix test
 
@@ -56,8 +54,8 @@ jobs:
           persist-credentials: false
       - uses: erlef/setup-beam@8d44588995e53ce789721e96227122a67826542d
         with:
-          otp-version: "29.0.1"
-          elixir-version: "1.20.1"
+          version-file: .tool-versions
+          version-type: strict
 
       - run: mix deps.get --only prod
       - run: mix compile
